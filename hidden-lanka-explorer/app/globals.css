@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --forest: #0b2417;
+  --forest-light: #123b26;
+  --forest-soft: #1c4b31;
+
+  --cream: #f6f1e8;
+  --cream-dark: #e9e0d0;
+
+  --ochre: #c99a43;
+  --ochre-dark: #a77a2f;
+
+  --ink: #17231c;
+  --muted: #718078;
+
+  --white: #ffffff;
+  --border: rgba(11, 36, 23, 0.1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-outfit), sans-serif;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img {
+  max-width: 100%;
+}
+
+.font-display {
+  font-family: var(--font-display), serif;
+}
+
+::selection {
+  background: var(--ochre);
+  color: var(--forest);
+}
+
+.container-main {
+  width: min(1280px, calc(100% - 32px));
+  margin-inline: auto;
+}
+
+@media (min-width: 640px) {
+  .container-main {
+    width: min(1280px, calc(100% - 48px));
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-main {
+    width: min(1280px, calc(100% - 64px));
+  }
+}
+
+.section-padding {
+  padding-block: 80px;
+}
+
+@media (max-width: 767px) {
+  .section-padding {
+    padding-block: 56px;
+  }
 }
