@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
@@ -18,17 +18,17 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-[720px] overflow-hidden bg-[#0b2417]">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1588598198321-9735fd524f09?auto=format&fit=crop&w=2200&q=85')",
-        }}
+      <Image
+        src="/images/hero/sigiriya.jpg"
+        alt="Sri Lanka landscape"
+        fill
+        priority
+        className="object-cover object-center"
       />
 
-      <div className="absolute inset-0 bg-[#06150d]/60" />
+      <div className="absolute inset-0 bg-black/15" />
 
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0b2417] via-transparent to-[#0b2417]/30" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0b2417] via-transparent to-black/20" />
 
       <div className="container-main relative flex min-h-[720px] items-center py-20">
         <div className="max-w-4xl text-white">
