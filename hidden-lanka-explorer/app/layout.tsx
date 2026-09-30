@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Serif_Display, Outfit } from "next/font/google";
+import {  Syne, Plus_Jakarta_Sans } from "next/font/google";
 
 import "./globals.css";
 
@@ -7,13 +7,11 @@ import { TripProvider } from "@/lib/trip-context";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 
-const display = DM_Serif_Display({
+const display = Syne({
   subsets: ["latin"],
-  weight: "400",
   variable: "--font-display",
 });
-
-const outfit = Outfit({
+const outfit = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-outfit",
 });
