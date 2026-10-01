@@ -265,23 +265,98 @@ export default function SignUpPage() {
       </section>
 
       <style jsx>{`
-        .page { min-height:100vh; display:grid; place-items:center; padding:30px 16px; background:#f2f4ed; color:#20372b; font-family:Arial,sans-serif; }
-        .card { width:min(100%,1060px); display:grid; grid-template-columns:.82fr 1.18fr; background:white; border-radius:22px; overflow:hidden; box-shadow:0 22px 70px #1839271c; }
-        .hero { padding:38px; min-height:650px; color:white; display:flex; flex-direction:column; justify-content:space-between; background:linear-gradient(180deg,#183a2cc9,#173426e8),url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=85") center/cover; }
-        .brand { font-size:13px; font-weight:800; letter-spacing:3px; }.brand span { color:#e5c77b; }
-        .hero-kicker,.kicker { font-size:10px; font-weight:800; letter-spacing:2px; color:#b08b43; }
-        .hero-kicker { color:#e5c77b; } h1 { font:500 42px/1.12 Georgia,serif; }
-        .hero p:not(.hero-kicker) { color:#e0e9e2; line-height:1.7; font-size:14px; max-width:300px; }
-        .hero small { color:#d7e1d8; }.form-panel { padding:32px clamp(22px,5vw,54px); }
-        .back { display:inline-block; margin-bottom:20px; color:#65776c; text-decoration:none; font-size:13px; }
-        h2 { font:500 31px Georgia,serif; margin:8px 0; }.intro { color:#718077; font-size:13px; margin:0 0 20px; }
-        form { display:grid; gap:13px; }.photo-picker { display:flex; align-items:center; gap:12px; cursor:pointer; margin-bottom:3px; }
-        .photo-picker input { display:none; }.avatar { width:54px; height:54px; display:grid; place-items:center; overflow:hidden; border-radius:50%; background:#edf2eb; color:#58735d; font-size:25px; }
-        .avatar img { width:100%; height:100%; object-fit:cover; }.photo-picker strong,.photo-picker small { display:block; }.photo-picker strong { font-size:13px; }.photo-picker small,.optional { color:#89938b; font-size:10px; margin-left:4px; }
-        .photo-picker small { margin:5px 0 0; }.two-columns { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        .field { display:grid; gap:6px; font-size:11px; font-weight:700; }.field input,.field select,.field textarea { box-sizing:border-box; width:100%; padding:11px; border:1px solid #dfe5df; border-radius:7px; outline:none; background:white; color:#20372b; font:13px Arial; }
+        .page { min-height:100vh;
+         display:grid; 
+         place-items:center; 
+         padding:30px 16px; 
+         background:#f2f4ed; color:#20372b; 
+         font-family:inherit; 
+         }
+        .card {
+         width:min(100%,1060px); 
+         display:grid; 
+         grid-template-columns:.82fr 1.18fr; 
+         background:white; border-radius:22px; 
+         overflow:hidden; 
+         box-shadow:0 22px 70px #1839271c; 
+         }
+        .hero { padding:38px; 
+        min-height:650px; color:white;
+         display:flex; 
+         flex-direction:column; 
+         justify-content:space-between;
+          background:linear-gradient(180deg,#183a2cc9,#173426e8),url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=85") center/cover; 
+          }
+        .brand { font-size:13px; 
+        font-weight:800; 
+        letter-spacing:3px; }.brand span { color:#e5c77b; 
+        }
+        .hero-kicker,.kicker { font-size:10px;
+         font-weight:800; 
+         letter-spacing:2px; 
+         color:#b08b43; 
+         }
+        .hero-kicker { color:#e5c77b; 
+        } h1 { font:500 42px/1.12 Georgia,serif; 
+         }
+        .hero p:not(.hero-kicker) { color:#e0e9e2; 
+        line-height:1.7; 
+        font-size:14px;
+         max-width:300px; 
+         }
+        .hero small { color:#d7e1d8; }.form-panel { padding:32px clamp(22px,5vw,54px); 
+        }
+        .back { display:inline-block;
+         margin-bottom:20px; color:#65776c; 
+         text-decoration:none; 
+         ont-size:13px; 
+         }
+        h2 { font:500 31px Georgia,serif;
+         margin:8px 0; }.intro { color:#718077; font-size:13px; 
+         margin:0 0 20px; 
+         }
+        form { display:grid; gap:13px; }.photo-picker { display:flex; align-items:center; 
+        gap:12px; 
+        cursor:pointer; 
+        margin-bottom:3px;
+         }
+        .photo-picker input { display:none; }.avatar { width:54px; height:54px;
+         display:grid; 
+         place-items:center;
+          overflow:hidden; 
+          border-radius:50%;
+           background:#edf2eb; 
+           color:#58735d; 
+           font-size:25px; 
+           }
+        .avatar img { width:100%; 
+        height:100%; object-fit:cover; 
+        }.photo-picker strong,.photo-picker small { display:block; }.photo-picker strong { font-size:13px; }.photo-picker small,.optional { color:#89938b; font-size:10px; margin-left:4px; 
+        }
+        .photo-picker small { margin:5px 0 0; }.two-columns { display:grid; grid-template-columns:1fr 1fr; gap:12px;
+         }
+        .field { display:grid;
+         gap:6px; 
+         font-size:15px; 
+         font-weight:700; 
+         }.field input,.field select,.field textarea { box-sizing:border-box;
+          width:100%; 
+          padding:12px; 
+          border:1px solid #dfe5df; border-radius:7px; 
+          outline:none; background:white; color:#20372b; font:13px Arial; 
+          }
         .field textarea { min-height:65px; resize:vertical; }.field input:focus,.field select:focus,.field textarea:focus { border-color:#66836b; box-shadow:0 0 0 3px #66836b1c; }
-        fieldset { border:0; padding:0; margin:0; } legend { font-size:11px; font-weight:700; margin-bottom:8px; }.chips { display:flex; flex-wrap:wrap; gap:7px; }
+        fieldset { border:0; padding:0; margin:0; 
+        } 
+        legend {
+         font-size:12px; 
+        font-weight:700;
+         margin-bottom:8px; 
+         }.chips {
+          display:flex; f
+          lex-wrap:wrap; 
+          gap:8px; 
+          }
         .chip { border:1px solid #dfe5df; border-radius:20px; background:white; color:#516258; padding:7px 11px; font-size:11px; cursor:pointer; }
         .chip.selected { border-color:#315c40; background:#eaf1e9; color:#244c34; }
         .submit { width:100%; border:0; border-radius:8px; padding:13px; background:#244d37; color:white; font-weight:700; cursor:pointer; }
