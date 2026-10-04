@@ -8,11 +8,11 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0b2417]/95 text-white backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-[#304b61] bg-[#172b3d] text-[#f5ead7] shadow-lg">
       <div className="container-main">
         <div className="flex h-16 items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#c99a43] text-[#0b2417]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#173b2c] text-[#f1cf88]">
               <Compass size={20} />
             </span>
 
