@@ -17,6 +17,7 @@ const outfit = Plus_Jakarta_Sans({
   variable: "--font-outfit",
 });
 
+
 export const metadata: Metadata = {
   title: "Hidden Lanka Explorer",
   description:

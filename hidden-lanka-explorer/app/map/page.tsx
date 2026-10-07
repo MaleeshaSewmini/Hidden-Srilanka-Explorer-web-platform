@@ -145,6 +145,10 @@ export default function MapSection({
   const [district, setDistrict] = useState("All Districts");
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   const filteredPlaces = useMemo(() => {
     return places.filter((place) => {
       const matchesSearch =
