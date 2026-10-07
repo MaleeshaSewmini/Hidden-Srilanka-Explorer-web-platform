@@ -1747,21 +1747,15 @@ export default function AddPlacePage() {
             ) : (
               <div className="image-preview-wrapper">
 
-                <img
-                  src={
+                <img src={
                     imagePreview
                   }
                   alt="Place preview"
                   className="image-preview"
                 />
 
-                <button
-                  type="button"
-                  onClick={
-                    removeImage
-                  }
-                  className="remove-image"
-                >
+                <button type="button" onClick={removeImage}
+                  className="remove-image">
                   Remove image
                 </button>
 
