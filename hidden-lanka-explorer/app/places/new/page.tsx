@@ -1806,7 +1806,7 @@ export default function AddPlacePage() {
                   )
                 }
                 rows={5}
-                placeholder="e.g. Visit before 8 AM for fewer crowds..."
+                placeholder={"Add one tip per line, for example:\nVisit before 8 AM for fewer crowds.\nBring water for the trail."}
               />
 
             </div>

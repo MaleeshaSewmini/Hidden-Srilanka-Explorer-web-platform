@@ -5,10 +5,13 @@ import { createClient } from "@supabase/supabase-js";
 import {
   CheckCircle2,
   Clock3,
+  Pencil,
   ImageIcon,
   MapPinned,
+  Save,
   ShieldCheck,
   Star,
+  X,
   XCircle,
 } from "lucide-react";
 
@@ -45,6 +48,35 @@ type PlaceRecord = {
   created_at?: string | null;
   created_by?: string | null;
   is_verified?: boolean | null;
+};
+
+type PlaceEditForm = {
+  name: string;
+  slug: string;
+  district: string;
+  category: string;
+  nearest_town: string;
+  address: string;
+  short_description: string;
+  description: string;
+  latitude: string;
+  longitude: string;
+  difficulty: string;
+  best_season: string;
+  best_time: string;
+  visit_duration: string;
+  entrance_fee: string;
+  opening_hours: string;
+  distance_from_colombo: string;
+  accessibility: string;
+  transport: string;
+  road_condition: string;
+  activities: string;
+  safety_level: string;
+  safety_tips: string;
+  warnings: string;
+  hero_image_url: string;
+  hidden_tips: string;
 };
 
 const supabase = createClient(
@@ -107,11 +139,24 @@ function formatList(value: unknown) {
   return String(value);
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+
+  if (error && typeof error === "object" && "message" in error) {
+    const message = error.message;
+    if (typeof message === "string") return message;
+  }
+
+  return "An unexpected error occurred.";
+}
+
 export default function AdminDashboardPage() {
   const [places, setPlaces] = useState<PlaceRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<PlaceEditForm | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -189,6 +234,174 @@ export default function AdminDashboardPage() {
     }
   }
 
+  function startEditing(place: PlaceRecord) {
+    setEditDraft({
+      name: place.name ?? "",
+      slug: place.slug ?? "",
+      district: place.district ?? "",
+      category: place.category ?? "",
+      nearest_town: place.nearest_town ?? "",
+      address: place.address ?? "",
+      short_description: place.short_description ?? "",
+      description: place.description ?? "",
+      latitude: place.latitude?.toString() ?? "",
+      longitude: place.longitude?.toString() ?? "",
+      difficulty: place.difficulty ?? "",
+      best_season: place.best_season ?? "",
+      best_time: place.best_time ?? "",
+      visit_duration: place.visit_duration ?? "",
+      entrance_fee: place.entrance_fee ?? "",
+      opening_hours: place.opening_hours ?? "",
+      distance_from_colombo: place.distance_from_colombo?.toString() ?? "",
+      accessibility: place.accessibility ?? "",
+      transport: place.transport ?? "",
+      road_condition: place.road_condition ?? "",
+      activities: Array.isArray(place.activities)
+        ? place.activities.join(", ")
+        : place.activities ?? "",
+      safety_level: place.safety_level ?? "",
+      safety_tips: place.safety_tips ?? "",
+      warnings: place.warnings ?? "",
+      hero_image_url: place.hero_image_url ?? "",
+      hidden_tips: place.hidden_tips ?? "",
+    });
+    setErrorMessage("");
+  }
+
+  async function handlePlaceEditSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedPlace || !editDraft) return;
+
+    const requiredFields: Array<keyof PlaceEditForm> = [
+      "name",
+      "slug",
+      "district",
+      "category",
+      "description",
+    ];
+    if (requiredFields.some((field) => !editDraft[field].trim())) {
+      setErrorMessage("Place name, slug, district, category, and full description are required.");
+      return;
+    }
+
+    const toNullableNumber = (value: string) =>
+      value.trim() ? Number(value) : null;
+    const latitude = toNullableNumber(editDraft.latitude);
+    const longitude = toNullableNumber(editDraft.longitude);
+    const distanceFromColombo = toNullableNumber(editDraft.distance_from_colombo);
+
+    if (
+      [latitude, longitude, distanceFromColombo].some(
+        (value) => value !== null && !Number.isFinite(value),
+      )
+    ) {
+      setErrorMessage("Latitude, longitude, and distance must be valid numbers.");
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      setErrorMessage("");
+
+      const { data, error } = await supabase
+        .from("places")
+        .update({
+          name: editDraft.name.trim(),
+          slug: editDraft.slug.trim() || null,
+          district: editDraft.district.trim() || null,
+          category: editDraft.category.trim() || null,
+          nearest_town: editDraft.nearest_town.trim() || null,
+          address: editDraft.address.trim() || null,
+          short_description: editDraft.short_description.trim() || null,
+          description: editDraft.description.trim() || null,
+          latitude,
+          longitude,
+          difficulty: editDraft.difficulty.trim() || null,
+          best_season: editDraft.best_season.trim() || null,
+          best_time: editDraft.best_time.trim() || null,
+          visit_duration: editDraft.visit_duration.trim() || null,
+          entrance_fee: editDraft.entrance_fee.trim() || null,
+          opening_hours: editDraft.opening_hours.trim() || null,
+          distance_from_colombo: distanceFromColombo,
+          accessibility: editDraft.accessibility.trim() || null,
+          transport: editDraft.transport.trim() || null,
+          road_condition: editDraft.road_condition.trim() || null,
+          activities: editDraft.activities
+            .split(",")
+            .map((activity) => activity.trim())
+            .filter(Boolean),
+          safety_level: editDraft.safety_level.trim() || null,
+          safety_tips: editDraft.safety_tips.trim() || null,
+          warnings: editDraft.warnings.trim() || null,
+          hero_image_url: editDraft.hero_image_url.trim() || null,
+          hidden_tips: editDraft.hidden_tips.trim() || null,
+        })
+        .eq("id", selectedPlace.id)
+        .select("id")
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) {
+        throw new Error(
+          "No place was updated. Check that you are signed in with an account allowed to edit places and that the place still exists.",
+        );
+      }
+
+      setEditDraft(null);
+      await loadPlaces();
+    } catch (error) {
+      const message = getErrorMessage(error);
+      console.error("UPDATE_PLACE_ERROR", message);
+      setErrorMessage(`Unable to save place changes: ${message}`);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  function renderEditField(
+    label: string,
+    field: keyof PlaceEditForm,
+    options: { multiline?: boolean; numeric?: boolean } = {},
+  ) {
+    if (!editDraft) return null;
+
+    const className =
+      "mt-1.5 w-full rounded-xl border border-[#d9d0bf] bg-white px-3 py-2 text-sm text-[#0b2417] focus:border-[#0b2417] focus:outline-none focus:ring-2 focus:ring-[#0b2417]/10";
+    const value = editDraft[field];
+    const onChange = (
+      event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    ) => setEditDraft({ ...editDraft, [field]: event.target.value });
+
+    return (
+      <label key={field} className="block text-sm font-semibold text-[#31433b]">
+        {label}
+        {options.multiline ? (
+          <textarea
+            rows={3}
+            required={field === "description"}
+            value={value}
+            onChange={onChange}
+            className={className}
+          />
+        ) : (
+          <input
+            type={options.numeric ? "number" : "text"}
+            step={options.numeric ? "any" : undefined}
+            required={
+              field === "name" ||
+              field === "slug" ||
+              field === "category" ||
+              field === "district"
+            }
+            value={value}
+            onChange={onChange}
+            className={className}
+          />
+        )}
+      </label>
+    );
+  }
+
   const statsCards = [
     {
       label: "Total places",
@@ -221,7 +434,7 @@ export default function AdminDashboardPage() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#718078]">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#718078]">
               Moderation board
             </p>
             <h2 className="mt-2 text-3xl font-black text-[#0b2417] md:text-4xl">
@@ -284,7 +497,10 @@ export default function AdminDashboardPage() {
                     <button
                       key={place.id}
                       type="button"
-                      onClick={() => setSelectedId(place.id)}
+                      onClick={() => {
+                        setSelectedId(place.id);
+                        setEditDraft(null);
+                      }}
                       className={`w-full rounded-3xl border p-3 text-left transition ${
                         isSelected
                           ? "border-[#0b2417] bg-[#f5f0e5] shadow-sm"
@@ -339,6 +555,87 @@ export default function AdminDashboardPage() {
           <div className="rounded-[28px] border border-[#d9d0bf] bg-white p-5 shadow-[0_12px_30px_rgba(11,36,23,0.06)]">
             {selectedPlace ? (
               <>
+                <div className="mb-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => startEditing(selectedPlace)}
+                    className="inline-flex items-center gap-2 rounded-full border border-[#0b2417] bg-white px-4 py-2 text-sm font-semibold text-[#0b2417] transition hover:bg-[#0b2417] hover:text-white"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit place
+                  </button>
+                </div>
+
+                {editDraft && (
+                  <form
+                    onSubmit={(event) => void handlePlaceEditSubmit(event)}
+                    className="mb-6 space-y-6 rounded-3xl border border-[#d9d0bf] bg-[#faf7f0] p-5"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-[#0b2417]">Edit place details</h3>
+                        <p className="mt-1 text-sm text-[#718078]">
+                          Update the place information, travel details, and advisories.
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditDraft(null)}
+                          disabled={savingEdit}
+                          className="inline-flex items-center gap-2 rounded-full border border-[#d9d0bf] bg-white px-4 py-2 text-sm font-semibold text-[#31433b] hover:bg-[#f6f1e8] disabled:opacity-60"
+                        >
+                          <X className="h-4 w-4" />
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={savingEdit}
+                          className="inline-flex items-center gap-2 rounded-full bg-[#0b2417] px-4 py-2 text-sm font-semibold text-white hover:bg-[#123b26] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Save className="h-4 w-4" />
+                          {savingEdit ? "Saving..." : "Save changes"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {renderEditField("Place name", "name")}
+                      {renderEditField("Slug", "slug")}
+                      {renderEditField("Category", "category")}
+                      {renderEditField("District", "district")}
+                      {renderEditField("Nearest town", "nearest_town")}
+                      {renderEditField("Address", "address")}
+                      {renderEditField("Latitude", "latitude", { numeric: true })}
+                      {renderEditField("Longitude", "longitude", { numeric: true })}
+                      {renderEditField("Difficulty", "difficulty")}
+                      {renderEditField("Best season", "best_season")}
+                      {renderEditField("Best time", "best_time")}
+                      {renderEditField("Visit duration", "visit_duration")}
+                      {renderEditField("Entrance fee", "entrance_fee")}
+                      {renderEditField("Opening hours", "opening_hours")}
+                      {renderEditField("Distance from Colombo (km)", "distance_from_colombo", {
+                        numeric: true,
+                      })}
+                      {renderEditField("Accessibility", "accessibility")}
+                      {renderEditField("Transport", "transport")}
+                      {renderEditField("Road condition", "road_condition")}
+                      {renderEditField("Activities (comma separated)", "activities")}
+                      {renderEditField("Safety level", "safety_level")}
+                      {renderEditField("Short description", "short_description", {
+                        multiline: true,
+                      })}
+                      {renderEditField("Full description", "description", { multiline: true })}
+                      {renderEditField("Safety tips", "safety_tips", { multiline: true })}
+                      {renderEditField("Warnings", "warnings", { multiline: true })}
+                      {renderEditField("Explorer insider tips", "hidden_tips", {
+                        multiline: true,
+                      })}
+                      {renderEditField("Hero image URL", "hero_image_url")}
+                    </div>
+                  </form>
+                )}
+
                 <div className="overflow-hidden rounded-[24px] border border-[#e7decf] bg-[#f9f6f1]">
                   {selectedPlace.hero_image_url ? (
                     <img
@@ -462,7 +759,10 @@ export default function AdminDashboardPage() {
                 <div className="mt-6 rounded-3xl border border-[#eae1d3] bg-[#faf7f0] p-4">
                   <h4 className="font-bold text-[#0b2417]">Additional notes</h4>
                   <p className="mt-3 text-sm text-[#31433b]">
-                    <strong>Hidden tips:</strong> {selectedPlace.hidden_tips || "Not added"}
+                    <strong>Hidden tips:</strong>{" "}
+                    <span className="whitespace-pre-line">
+                      {selectedPlace.hidden_tips || "Not added"}
+                    </span>
                   </p>
                 </div>
 

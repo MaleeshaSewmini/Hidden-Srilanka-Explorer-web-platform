@@ -233,7 +233,7 @@ export default function PlaceSubmitForm() {
                 {formData.hiddenTips && (
                   <div className="mt-4 rounded-xl bg-[#f7f4ee] p-3 text-xs text-[#4b5d53] border-l-2 border-[#c99a43]">
                     <span className="font-semibold text-[#0b2417]">Insider Tip: </span>
-                    {formData.hiddenTips}
+                    <span className="whitespace-pre-line">{formData.hiddenTips}</span>
                   </div>
                 )}
 
