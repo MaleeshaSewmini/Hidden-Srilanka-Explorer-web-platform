@@ -362,7 +362,7 @@ export default function PlaceDetailModal({
                   <Sparkles size={16} />
                   <h4 className="text-sm font-bold">Explorer Insider Tips</h4>
                 </div>
-                <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-[#4b5d53]">
+                <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-black sm:text-base">
                   {place.hidden_tips}
                 </p>
               </div>
@@ -481,27 +481,32 @@ export default function PlaceDetailModal({
             {/* Safety & Advisory */}
             {(place.safety_level || place.safety_tips || place.warnings) && (
               <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#faf7f0] p-3.5">
-                <div className="flex items-center gap-2 text-amber-900">
+                <div className="flex items-center gap-2 text-amber-900 ">
                   <Shield size={16} />
                   <h4 className="text-base font-bold">Safety & Travel Advisory</h4>
                 </div>
 
-                <div className="mt-2 space-y-1.5 text-base text-amber-1000">
+                <div className="mt-2 space-y-1.5 text-base text-amber-1000 ">
                   {place.safety_level && (
                     <p>
-                      <strong>Safety Level :</strong> <strong className="font-medium">{place.safety_level}</strong>
+                      <strong>Safety Level :</strong>{" "}
+                      <strong className="whitespace-pre-line font-medium">
+                        {place.safety_level}
+                      </strong>
                     </p>
                   )}
                   {place.safety_tips && (
                     <p>
-                      <strong>Safety Tips :</strong> {place.safety_tips}
+                      <strong>Safety Tips :</strong>{" "}
+                      <span className="whitespace-pre-line">{place.safety_tips}</span>
                     </p>
                   )}
                   {place.warnings && (
                     <p className="flex items-start gap-1 text-rose-800">
                       <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                      <span>
-                        <strong>Warning:</strong> <strong className="font-medium">{place.warnings}</strong>
+                      <span className="whitespace-pre-line">
+                        <strong>Warning:</strong>{" "}
+                        <strong className="font-medium">{place.warnings}</strong>
                       </span>
                     </p>
                   )}

@@ -11,7 +11,7 @@ export default function DashboardLayout({
       <header className="border-b border-[#d7cfbf] bg-[#fffdf9]/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#718078]">
+            <p className="text-base font-semibold uppercase tracking-[0.22em] text-[#718076]">
               Hidden Lanka
             </p>
             <h1 className="text-lg font-bold text-[#0b2417]">Admin dashboard</h1>
