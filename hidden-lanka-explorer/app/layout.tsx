@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import {  Syne, Plus_Jakarta_Sans } from "next/font/google";
+import { Syne, Plus_Jakarta_Sans } from "next/font/google";
 
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
@@ -7,6 +7,7 @@ import "./globals.css";
 import { TripProvider } from "@/lib/trip-context";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
+import AccessibilityWidget from "@/components/ui/accessibility-widget";
 
 const display = Syne({
   subsets: ["latin"],
@@ -16,7 +17,6 @@ const outfit = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-outfit",
 });
-
 
 export const metadata: Metadata = {
   title: "Hidden Lanka Explorer",
@@ -36,6 +36,7 @@ export default function RootLayout({
           <Navbar />
           <main>{children}</main>
           <Footer />
+          <AccessibilityWidget />
         </TripProvider>
       </body>
     </html>
