@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --forest: #0b2417;
+  --forest: #42795d;
   --forest-light: #123b26;
   --forest-soft: #1c4b31;
 
@@ -63,6 +63,7 @@ img {
 .container-main {
   width: min(1280px, calc(100% - 32px));
   margin-inline: auto;
+ 
 }
 
 @media (min-width: 640px) {
@@ -184,4 +185,82 @@ html[data-dashboard-theme="dark"] .dashboard-theme-scope .message {
   .section-padding {
     padding-block: 56px;
   }
+}
+
+/* ============================================================
+   ACCESSIBILITY (A11Y) SYSTEM OVERRIDES
+   ============================================================ */
+
+/* 1. Text Sizing */
+html.a11y-text-sm {
+  font-size: 14px !important;
+}
+html.a11y-text-md {
+  font-size: 18px !important;
+}
+html.a11y-text-lg {
+  font-size: 20px !important;
+}
+html.a11y-text-xl {
+  font-size: 22px !important;
+}
+
+/* 2. High Contrast */
+html.a11y-high-contrast {
+  filter: contrast(150%) !important;
+}
+html.a11y-high-contrast body {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+html.a11y-high-contrast header,
+html.a11y-high-contrast footer,
+html.a11y-high-contrast section,
+html.a11y-high-contrast article {
+  border-color: #ffffff !important;
+}
+
+/* 3. Grayscale */
+html.a11y-grayscale {
+  filter: grayscale(100%) !important;
+}
+
+/* 4. Invert Colors (preserve images/videos so they don't look like x-rays) */
+html.a11y-invert {
+  filter: invert(100%) hue-rotate(180deg) !important;
+}
+html.a11y-invert img,
+html.a11y-invert video,
+html.a11y-invert picture,
+html.a11y-invert canvas,
+html.a11y-invert svg {
+  filter: invert(100%) hue-rotate(180deg) !important;
+}
+
+/* 5. Underline Links */
+html.a11y-underline-links a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+
+/* 6. Readable Font */
+html.a11y-readable-font * {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.6 !important;
+}
+
+/* 7. Big Cursor */
+html.a11y-big-cursor,
+html.a11y-big-cursor * {
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 24 24' fill='%23000000' stroke='%23ffffff' stroke-width='1.5'><polygon points='3 3 10.5 21 14 14 21 10.5 3 3'/></svg>"), auto !important;
+}
+
+/* 8. Pause Motion */
+html.a11y-pause-motion *,
+html.a11y-pause-motion *::before,
+html.a11y-pause-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
 }

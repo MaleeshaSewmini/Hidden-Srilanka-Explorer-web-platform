@@ -33,7 +33,7 @@ const seasons = [
 
 export default function SeasonalGuide() {
   return (
-    <section className="section-padding bg-[#f6f1e8]">
+    <section className="section-padding bg-[#f6f1e8] ">
       <div className="container-main">
         <SectionHeading
           eyebrow="Plan around the island"
@@ -49,7 +49,7 @@ export default function SeasonalGuide() {
             >
               <div className="text-3xl">{season.icon}</div>
 
-              <div className="mt-5 text-xs font-semibold uppercase tracking-widest text-[#a77a2f]">
+              <div className="mt-5 text-base font-semibold uppercase tracking-widest text-[#a77a2f]">
                 {season.months}
               </div>
 

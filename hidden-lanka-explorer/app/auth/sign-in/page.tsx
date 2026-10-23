@@ -33,6 +33,7 @@ export default function SignInPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,7 +89,6 @@ export default function SignInPage() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f5f7f2] px-4 py-8 sm:px-6 lg:py-10">
-
       {/* Soft light background */}
       <div
         aria-hidden="true"
@@ -117,11 +117,8 @@ export default function SignInPage() {
 
       {/* Main Layout */}
       <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-2 lg:gap-12">
-
         {/* LEFT SIDE: Destination Image */}
         <section className="relative min-h-[280px] overflow-hidden rounded-[28px] border border-white shadow-xl shadow-emerald-950/10 sm:min-h-[340px] lg:min-h-[650px]">
-
-          {/* Your local image */}
           <Image
             src="/images/places/Sri Lanka.jpg"
             alt="A beautiful hidden destination in Sri Lanka"
@@ -131,13 +128,13 @@ export default function SignInPage() {
             className="object-cover object-center"
           />
 
-          {/* Light gradient overlay for text readability */}
+          {/* Light gradient overlay */}
           <div
             aria-hidden="true"
             className="absolute inset-0 bg-gradient-to-b from-white/80 via-white/10 to-white/95"
           />
 
-          {/* Subtle decorative circles */}
+          {/* Decorative circles */}
           <div
             aria-hidden="true"
             className="absolute -right-20 top-20 h-64 w-64 rounded-full border border-white/50"
@@ -153,8 +150,6 @@ export default function SignInPage() {
             href="/"
             className="absolute left-5 right-5 top-5 z-10 flex items-center gap-3 sm:left-7 sm:top-7"
           >
-            
-
             <div>
               <p className="text-lg font-bold tracking-tight text-[#163b2a]">
                 Hidden Sri Lanka
@@ -168,17 +163,12 @@ export default function SignInPage() {
 
           {/* Introduction at the bottom */}
           <div className="absolute inset-x-0 bottom-0 z-10 p-6 sm:p-9 lg:p-10">
-
-            
-
-            <h1 className="max-w-xl text-3xl font-bold leading-tight tracking-tight text- black sm:text-4xl xl:text-5xl">
+            <h1 className="max-w-xl text-3xl font-bold leading-tight tracking-tight text-black sm:text-4xl xl:text-5xl">
               Find the places
               <span className="mt-1 block text-black">
                 others never find.
               </span>
             </h1>
-
-           
 
             {/* Feature tags */}
             <div className="mt-6 flex flex-wrap gap-2">
@@ -199,7 +189,6 @@ export default function SignInPage() {
 
         {/* RIGHT SIDE: Sign-In Form */}
         <section className="mx-auto w-full max-w-md">
-
           {/* Mobile Brand */}
           <Link
             href="/"
@@ -222,7 +211,6 @@ export default function SignInPage() {
 
           {/* White Sign-In Card */}
           <div className="rounded-[28px] border border-gray-200/80 bg-white p-7 shadow-xl shadow-emerald-950/[0.06] sm:p-9">
-
             {/* Heading */}
             <div className="mb-8">
               <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50">
@@ -247,7 +235,7 @@ export default function SignInPage() {
                 Welcome back
               </h2>
 
-              <p className="mt-3 text-sm leading-6 text-gray-600">
+              <p className="mt-3 text-base leading-6 text-gray-600">
                 Sign in to continue your journey and access your
                 saved trips and favourite places.
               </p>
@@ -255,7 +243,6 @@ export default function SignInPage() {
 
             {/* Sign-In Form */}
             <form className="space-y-5" onSubmit={handleSubmit}>
-
               {/* Email */}
               <div>
                 <label
@@ -290,23 +277,70 @@ export default function SignInPage() {
 
                   <Link
                     href="/auth/forgot-password"
-                    className="text-xs font-semibold text-emerald-700 transition hover:text-emerald-900 hover:underline"
+                    className="text-base font-semibold text-emerald-700 transition hover:text-emerald-900 hover:underline"
                   >
                     Forgot password?
                   </Link>
                 </div>
 
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full rounded-xl border border-gray-200 bg-[#f9faf8] px-4 py-3.5 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-emerald-300 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10"
-                />
+                {/* Password input with eye icon */}
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full rounded-xl border border-gray-200 bg-[#f9faf8] px-4 py-3.5 pr-12 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-emerald-300 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    className="absolute inset-y-0 right-0 flex items-center justify-center px-4 text-gray-500 transition hover:text-emerald-700 focus:outline-none focus:text-emerald-700"
+                  >
+                    {showPassword ? (
+                      /* Eye-off icon */
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-5 w-5"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 3l18 18" />
+                        <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                        <path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c5.5 0 9 7 9 7a14.8 14.8 0 0 1-3.1 3.9" />
+                        <path d="M6.2 6.2C3.9 7.8 2 12 2 12s3.5 7 10 7a10 10 0 0 0 4-.8" />
+                      </svg>
+                    ) : (
+                      /* Eye icon */
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-5 w-5"
+                        aria-hidden="true"
+                      >
+                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Authentication Error */}
@@ -332,7 +366,7 @@ export default function SignInPage() {
               <div className="flex items-center gap-4 py-1">
                 <div className="h-px flex-1 bg-gray-200" />
 
-                <span className="text-xs font-medium tracking-wider text-gray-400">
+                <span className="text-base font-medium tracking-wider text-gray-600">
                   OR CONTINUE WITH
                 </span>
 
@@ -385,7 +419,6 @@ export default function SignInPage() {
             {/* Sign-Up Link */}
             <p className="mt-8 text-center text-sm text-gray-600">
               Don&apos;t have an account?{" "}
-
               <Link
                 href="/auth/sign-up"
                 className="font-bold text-emerald-700 transition hover:text-emerald-900 hover:underline"
