@@ -374,7 +374,7 @@ const previousImage = () => {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
           <div>
-            <p className="mb-2 text-sm font-semibold tracking-wide text-[#b07835]">
+            <p className="mb-2 text-base font-semibold tracking-wide text-[#b07835]">
               EXPLORE THE COLLECTION
             </p>
 

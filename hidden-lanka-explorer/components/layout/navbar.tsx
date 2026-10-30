@@ -33,7 +33,7 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#304b61] bg-[#172b3d] text-[#f5ead7] shadow-lg">
+    <header className="sticky top-0 z-50 border-b border-[#304b61] bg-[white] text-[black] shadow-lg">
       <div className="container-main">
         <div className="flex h-16 items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
@@ -41,27 +41,27 @@ export default function Navbar() {
               <img src ="images/logo/Logo.png"/>
             </span>
 
-            <span className="font-display text-xl sm:text-2xl">
-              Hidden Lanka
+            <span className="font-display text-xl sm:text-3xl">
+              Hidden Lanka Explorer
             </span>
           </Link>
 
           <nav className="hidden items-center gap-7 lg:flex">
-            <Link href="/places" className="text-sm hover:text-[#c99a43]">
+            <Link href="/places" className="text-base hover:text-[black]">
               Explore
             </Link>
 
-            <Link href="/map" className="text-sm hover:text-[#c99a43]">
+            <Link href="/map" className="text-base hover:text-[black]">
               Map
             </Link>
 
-            <Link href="/community" className="text-sm hover:text-[#c99a43]">
+            <Link href="/community" className="text-base hover:text-[black]">
               Community
             </Link>
 
             <Link
               href="/places/new"
-              className="rounded-full border border-[#c99a43]/60 px-4 py-2 text-sm text-[#f1cf88] transition hover:bg-[#c99a43] hover:text-[#0b2417]"
+              className="rounded-full border border-[#c99a43]/60 px-4 py-2 text-base text-[black] transition hover:bg-[#c99a43] hover:text-[#0b2417]"
             >
               + Add Place
             </Link>

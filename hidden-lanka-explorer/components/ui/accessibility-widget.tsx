@@ -54,9 +54,20 @@ export default function AccessibilityWidget() {
     } catch {
       // Ignore storage errors
     }
+
+    const handleOpen = () => setIsOpen(true);
+    const handleToggle = () => setIsOpen((prev) => !prev);
+
+    window.addEventListener("open-a11y", handleOpen);
+    window.addEventListener("toggle-a11y", handleToggle);
+
+    return () => {
+      window.removeEventListener("open-a11y", handleOpen);
+      window.removeEventListener("toggle-a11y", handleToggle);
+    };
   }, []);
 
-  // Apply settings to document element
+  // Apply settings to document root element
   useEffect(() => {
     if (typeof document === "undefined") return;
 
@@ -135,67 +146,70 @@ export default function AccessibilityWidget() {
   return (
     <>
       {/* =====================================================
-          FLOATING ACCESSIBILITY BUTTON (Bottom Left)
+          FLOATING RED ACCESSIBILITY BUTTON (Right Corner)
+          Exact match to user reference image
       ===================================================== */}
       <button
+        id="a11y-floating-btn"
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Open accessibility tools"
         title="Accessibility tools"
-        className="fixed bottom-6 left-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#004bd6] text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:bg-[#0038b8] focus:outline-none focus:ring-4 focus:ring-blue-300"
+        className="fixed bottom-6 right-6 z-[9999] flex h-16 w-16 items-center justify-center rounded-full bg-[#d9222a] text-white shadow-[0_8px_30px_rgba(217,34,42,0.55)] transition-all duration-300 hover:scale-110 hover:bg-[#c01820] focus:outline-none focus:ring-4 focus:ring-red-300 cursor-pointer active:scale-95 border-2 border-white/20"
       >
-        {/* Universal Accessibility Icon */}
+        {/* Outstretched arms & legs universal accessibility stick figure inside circle */}
         <svg
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="2.2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="h-7 w-7"
+          className="h-8 w-8 text-white"
         >
-          <circle cx="12" cy="12" r="10" />
-          <circle cx="12" cy="7.5" r="1.5" fill="currentColor" />
-          <path d="M12 9v5" />
-          <path d="M8 11.5l4-1 4 1" />
-          <path d="M9.5 18l2.5-4 2.5 4" />
+          <circle cx="12" cy="12" r="10" strokeWidth="2" />
+          <circle cx="12" cy="7" r="1.5" fill="currentColor" stroke="none" />
+          <path d="M6.8 10h10.4" strokeWidth="2.2" />
+          <path d="M12 10v4" strokeWidth="2.2" />
+          <path d="M9.2 17.8L12 14l2.8 3.8" strokeWidth="2.2" />
         </svg>
       </button>
 
       {/* =====================================================
-          ACCESSIBILITY PANEL DRAWER / MODAL
+          ACCESSIBILITY PANEL (Opens on Right Side Above Button)
+          Matching uploaded reference image
       ===================================================== */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:items-end sm:justify-start sm:p-6">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:items-end sm:justify-end sm:p-6 pointer-events-none">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity pointer-events-auto cursor-pointer"
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Panel Container (Matching uploaded image layout) */}
-          <div className="relative z-10 w-full max-w-[360px] overflow-hidden rounded-[24px] bg-white shadow-2xl transition-all border border-slate-200">
-            {/* Header */}
+          {/* Panel Container */}
+          <div className="relative z-10 w-full max-w-[365px] overflow-hidden rounded-[26px] bg-white shadow-2xl transition-all border border-slate-200 pointer-events-auto mb-20 sm:mb-20">
+            {/* Header: Royal Blue with icon and close X */}
             <div className="flex items-center justify-between bg-[#004bd6] px-5 py-4 text-white">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/40">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/40">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2"
+                    strokeWidth="2.2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="h-4 w-4"
+                    className="h-4.5 w-4.5 text-white"
                   >
-                    <circle cx="12" cy="12" r="10" />
-                    <circle cx="12" cy="7.5" r="1.5" fill="currentColor" />
-                    <path d="M12 9v5" />
-                    <path d="M8 11.5l4-1 4 1" />
-                    <path d="M9.5 18l2.5-4 2.5 4" />
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                    <circle cx="12" cy="7" r="1.5" fill="currentColor" stroke="none" />
+                    <path d="M7 10h10" />
+                    <path d="M12 10v4" />
+                    <path d="M9.5 17.5L12 14l2.5 3.5" />
                   </svg>
                 </span>
-                <h2 className="font-sans text-lg font-bold tracking-tight">
+                <h2 className="font-sans text-xl font-bold tracking-tight text-white">
                   Accessibility
                 </h2>
               </div>
@@ -204,17 +218,17 @@ export default function AccessibilityWidget() {
                 type="button"
                 onClick={() => setIsOpen(false)}
                 aria-label="Close accessibility panel"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30 cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Panel Body */}
-            <div className="max-h-[78vh] overflow-y-auto p-5 text-slate-800">
+            <div className="max-h-[76vh] overflow-y-auto p-5 text-slate-800">
               {/* TEXT SIZE SECTION */}
               <div className="mb-5">
-                <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                   TEXT SIZE
                 </span>
 
@@ -223,16 +237,16 @@ export default function AccessibilityWidget() {
                     type="button"
                     onClick={decreaseText}
                     aria-label="Decrease text size"
-                    className="flex h-10 flex-1 items-center justify-center rounded-lg font-bold text-slate-700 transition hover:bg-white hover:shadow-xs active:scale-95"
+                    className="flex h-10 flex-1 items-center justify-center rounded-lg font-bold text-slate-700 transition hover:bg-white hover:shadow-xs active:scale-95 cursor-pointer"
                   >
-                    <Minus size={16} />
+                    <Minus size={18} />
                   </button>
 
                   <button
                     type="button"
                     onClick={resetText}
                     aria-label="Reset text size"
-                    className="flex h-10 flex-1 items-center justify-center rounded-lg font-display text-base font-bold text-slate-900 transition hover:bg-white hover:shadow-xs"
+                    className="flex h-10 flex-1 items-center justify-center rounded-lg font-sans text-lg font-bold text-slate-900 transition hover:bg-white hover:shadow-xs cursor-pointer"
                   >
                     A
                   </button>
@@ -241,16 +255,16 @@ export default function AccessibilityWidget() {
                     type="button"
                     onClick={increaseText}
                     aria-label="Increase text size"
-                    className="flex h-10 flex-1 items-center justify-center rounded-lg font-bold text-slate-700 transition hover:bg-white hover:shadow-xs active:scale-95"
+                    className="flex h-10 flex-1 items-center justify-center rounded-lg font-bold text-slate-700 transition hover:bg-white hover:shadow-xs active:scale-95 cursor-pointer"
                   >
-                    <Plus size={16} />
+                    <Plus size={18} />
                   </button>
                 </div>
               </div>
 
               {/* DISPLAY SECTION */}
               <div className="mb-6">
-                <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                   DISPLAY
                 </span>
 
@@ -259,13 +273,13 @@ export default function AccessibilityWidget() {
                   <button
                     type="button"
                     onClick={() => toggleOption("highContrast")}
-                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition ${
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition cursor-pointer ${
                       settings.highContrast
                         ? "border-[#004bd6] bg-[#004bd6]/10 text-[#004bd6] ring-2 ring-[#004bd6]"
-                        : "border-slate-200 bg-[#f9fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
+                        : "border-slate-200 bg-[#f8fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
                     }`}
                   >
-                    <Contrast size={22} className="mb-2" />
+                    <Contrast size={24} className="mb-2" />
                     <span className="text-xs font-semibold">High contrast</span>
                   </button>
 
@@ -273,13 +287,13 @@ export default function AccessibilityWidget() {
                   <button
                     type="button"
                     onClick={() => toggleOption("grayscale")}
-                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition ${
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition cursor-pointer ${
                       settings.grayscale
                         ? "border-[#004bd6] bg-[#004bd6]/10 text-[#004bd6] ring-2 ring-[#004bd6]"
-                        : "border-slate-200 bg-[#f9fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
+                        : "border-slate-200 bg-[#f8fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
                     }`}
                   >
-                    <CircleDot size={22} className="mb-2" />
+                    <CircleDot size={24} className="mb-2" />
                     <span className="text-xs font-semibold">Grayscale</span>
                   </button>
 
@@ -287,13 +301,13 @@ export default function AccessibilityWidget() {
                   <button
                     type="button"
                     onClick={() => toggleOption("invertColors")}
-                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition ${
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition cursor-pointer ${
                       settings.invertColors
                         ? "border-[#004bd6] bg-[#004bd6]/10 text-[#004bd6] ring-2 ring-[#004bd6]"
-                        : "border-slate-200 bg-[#f9fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
+                        : "border-slate-200 bg-[#f8fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
                     }`}
                   >
-                    <Droplet size={22} className="mb-2" />
+                    <Droplet size={24} className="mb-2" />
                     <span className="text-xs font-semibold">Invert colors</span>
                   </button>
 
@@ -301,13 +315,13 @@ export default function AccessibilityWidget() {
                   <button
                     type="button"
                     onClick={() => toggleOption("underlineLinks")}
-                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition ${
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition cursor-pointer ${
                       settings.underlineLinks
                         ? "border-[#004bd6] bg-[#004bd6]/10 text-[#004bd6] ring-2 ring-[#004bd6]"
-                        : "border-slate-200 bg-[#f9fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
+                        : "border-slate-200 bg-[#f8fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
                     }`}
                   >
-                    <Link2 size={22} className="mb-2" />
+                    <Link2 size={24} className="mb-2" />
                     <span className="text-xs font-semibold">Underline links</span>
                   </button>
 
@@ -315,13 +329,13 @@ export default function AccessibilityWidget() {
                   <button
                     type="button"
                     onClick={() => toggleOption("readableFont")}
-                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition ${
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition cursor-pointer ${
                       settings.readableFont
                         ? "border-[#004bd6] bg-[#004bd6]/10 text-[#004bd6] ring-2 ring-[#004bd6]"
-                        : "border-slate-200 bg-[#f9fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
+                        : "border-slate-200 bg-[#f8fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
                     }`}
                   >
-                    <Type size={22} className="mb-2" />
+                    <Type size={24} className="mb-2" />
                     <span className="text-xs font-semibold">Readable font</span>
                   </button>
 
@@ -329,13 +343,13 @@ export default function AccessibilityWidget() {
                   <button
                     type="button"
                     onClick={() => toggleOption("bigCursor")}
-                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition ${
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition cursor-pointer ${
                       settings.bigCursor
                         ? "border-[#004bd6] bg-[#004bd6]/10 text-[#004bd6] ring-2 ring-[#004bd6]"
-                        : "border-slate-200 bg-[#f9fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
+                        : "border-slate-200 bg-[#f8fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
                     }`}
                   >
-                    <MousePointer2 size={22} className="mb-2" />
+                    <MousePointer2 size={24} className="mb-2" />
                     <span className="text-xs font-semibold">Big cursor</span>
                   </button>
 
@@ -343,26 +357,26 @@ export default function AccessibilityWidget() {
                   <button
                     type="button"
                     onClick={() => toggleOption("pauseMotion")}
-                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition ${
+                    className={`flex flex-col items-center justify-center rounded-2xl border p-4 text-center transition cursor-pointer ${
                       settings.pauseMotion
                         ? "border-[#004bd6] bg-[#004bd6]/10 text-[#004bd6] ring-2 ring-[#004bd6]"
-                        : "border-slate-200 bg-[#f9fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
+                        : "border-slate-200 bg-[#f8fafc] text-slate-800 hover:border-slate-300 hover:bg-white"
                     }`}
                   >
-                    <Pause size={22} className="mb-2" />
+                    <Pause size={24} className="mb-2" />
                     <span className="text-xs font-semibold">Pause motion</span>
                   </button>
                 </div>
               </div>
 
-              {/* RESET ALL BUTTON */}
+              {/* SOLID RED RESET ALL BUTTON (Exact match to uploaded image) */}
               <button
                 type="button"
                 onClick={resetAll}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/80 py-3 text-xs font-bold text-rose-600 transition hover:bg-rose-100 hover:text-rose-700 active:scale-98"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#cc0000] py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#b30000] active:scale-98 cursor-pointer"
               >
-                <RotateCcw size={15} />
-                Reset all
+                <RotateCcw size={16} />
+                <span>Reset all</span>
               </button>
             </div>
           </div>
@@ -371,3 +385,4 @@ export default function AccessibilityWidget() {
     </>
   );
 }
+
