@@ -8,6 +8,7 @@ import { TripProvider } from "@/lib/trip-context";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import AccessibilityWidget from "@/components/ui/accessibility-widget";
+import RecommendationBot from "@/components/ai/recommendation-bot";
 
 const display = Syne({
   subsets: ["latin"],
@@ -36,6 +37,7 @@ export default function RootLayout({
           <Navbar />
           <main>{children}</main>
           <Footer />
+          <RecommendationBot />
           <AccessibilityWidget />
         </TripProvider>
       </body>

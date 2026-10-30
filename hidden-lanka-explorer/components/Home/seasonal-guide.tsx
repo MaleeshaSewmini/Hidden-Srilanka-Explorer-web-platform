@@ -33,7 +33,7 @@ const seasons = [
 
 export default function SeasonalGuide() {
   return (
-    <section className="section-padding bg-[#f6f1e8] ">
+    <section className="section-padding bg-[white] text-2xl ">
       <div className="container-main">
         <SectionHeading
           eyebrow="Plan around the island"
