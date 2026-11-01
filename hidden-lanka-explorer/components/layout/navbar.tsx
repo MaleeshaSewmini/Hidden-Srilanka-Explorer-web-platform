@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { Compass, Menu, Search, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function Navbar() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const isHomePage = pathname === "/";
 
   useEffect(() => {
     const supabase = createClient();
@@ -33,9 +36,15 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#304b61] bg-[white] text-[black] shadow-lg">
+    <header
+      className={`sticky top-0 z-50 w-full border-b border-[#173b2c]/10 text-black shadow-md shadow-[#0b2417]/10 backdrop-blur-md transition-[background-color,border-radius] ${
+        isHomePage
+          ? "-mb-16 bg-white/75"
+          : "bg-white/95"
+      } ${open ? "rounded-b-3xl" : "rounded-b-xl"}`}
+    >
       <div className="container-main">
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex h-15 items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#173b2c] text-[#f1cf88]">
               <img src ="images/logo/Logo.png"/>
@@ -69,20 +78,27 @@ export default function Navbar() {
 
           <div className="hidden items-center gap-3 sm:flex">
             <Link
-              href="/places"
-              className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"
-            >
-              <Search size={18} />
-            </Link>
+    href="/places"
+    className="group relative flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10"
+  >
+    <Search size={18} />
 
+       <span className="pointer-events-none absolute top-full left-1/2 z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#0b2417] px-3 py-1.5 text-sm font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+      Search
+      </span>
+        </Link>
             {isSignedIn ? (
-              <Link
-                href="/profile"
-                aria-label="Open profile"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 hover:bg-white/10"
-              >
-                <User size={18} />
-              </Link>
+             <Link
+       href="/profile"
+      aria-label="Open profile"
+          className="group relative flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 hover:bg-white/10"
+>
+      <User size={18} />
+
+     <span className="pointer-events-none absolute top-full left-1/2 z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#0b2417] px-3 py-1.5 text-sm font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+        Profile
+      </span>
+     </Link>
             ) : (
               <Link
                 href="/auth/sign-in"

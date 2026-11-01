@@ -306,7 +306,7 @@ export default function PlaceDetailModal({
 
             {/* Quick Specs Grid */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#faf7f0] p-3.5">
+              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#E5E5E5] p-3.5">
                 <span className="flex items-center gap-1.5 text-[18px] font-semibold uppercase tracking-wider text-black">
                   <Calendar size={15} className="text-[#a06a1d]" /> Best Season
                 </span>
@@ -315,7 +315,7 @@ export default function PlaceDetailModal({
                 </p>
               </div>
 
-              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#faf7f0] p-3.5">
+              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#E5E5E5] p-3.5">
                 <span className="flex items-center gap-1.5 text-[18px] font-semibold uppercase tracking-wider text-black">
                   <Clock size={15} className="text-[#a06a1d]" /> Best Time
                 </span>
@@ -324,7 +324,7 @@ export default function PlaceDetailModal({
                 </p>
               </div>
 
-              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#faf7f0] p-3.5">
+              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#E5E5E5] p-3.5">
                 <span className="flex items-center gap-1.5 text-[18px] font-semibold uppercase tracking-wider text-black">
                   <Footprints size={15} className="text-[#a06a1d]" /> Duration
                 </span>
@@ -333,7 +333,7 @@ export default function PlaceDetailModal({
                 </p>
               </div>
 
-              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#faf7f0] p-3.5">
+              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#E5E5E5] p-3.5">
                 <span className="flex items-center gap-1.5 text-[18px] font-semibold uppercase tracking-wider text-black">
                   <Car size={13} className="text-[#a06a1d]" /> Road
                 </span>
@@ -357,10 +357,10 @@ export default function PlaceDetailModal({
 
             {/* Insider / Hidden Tips Box */}
             {place.hidden_tips && (
-              <div className="rounded-2xl border-l-4 border-[#c99a43] bg-[#fbf8f2] p-4.5 shadow-sm">
+              <div className="rounded-2xl border-l-4 border-[#c99a43] bg-[#E5E5E5] p-4.5 shadow-sm">
                 <div className="flex items-center gap-2 text-[#a06a1d]">
-                  <Sparkles size={16} />
-                  <h4 className="text-sm font-bold">Explorer Insider Tips</h4>
+    
+                  <h4 className="text-base font-bold">Explorer Insider Tips</h4>
                 </div>
                 <p className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-black sm:text-base">
                   {place.hidden_tips}
@@ -370,7 +370,7 @@ export default function PlaceDetailModal({
 
             {/* Location & Navigation Section */}
             {(place.address || (place.latitude && place.longitude)) && (
-              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#faf7f0] p-3.5">
+              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#E5E5E5] p-3.5">
                 <div className="flex items-center justify-between">
                   <h4 className="flex items-center gap-1.5 text-[18px] font-semibold uppercase tracking-wider text-black">
                     <MapPin size={16} className="text-[#0b2417]" />
@@ -464,13 +464,13 @@ export default function PlaceDetailModal({
             {(place.entrance_fee || place.opening_hours) && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-base text-zinc-800">
                 {place.entrance_fee && (
-                  <div className="rounded-2xl border-l-4 border-[#c99a43] bg-[#fbf8f2] p-4.5 shadow-sm">
+                  <div className="rounded-2xl border-l-4 border-[#c99a43] bg-[#E5E5E5] p-4.5 shadow-sm">
                     <span className="font-semibold text-black">Entrance Fee:</span>
                     <p className="mt-1 font-bold text-[#0b2417]">{place.entrance_fee}</p>
                   </div>
                 )}
                 {place.opening_hours && (
-                  <div className="rounded-2xl border-l-4 border-[#c99a43] bg-[#fbf8f2] p-4.5 shadow-sm">
+                  <div className="rounded-2xl border-l-4 border-[#c99a43] bg-[#E5E5E5] p-4.5 shadow-sm">
                     <span className="font-semibold text-black">Opening Hours:</span>
                     <p className="mt-1 font-bold text-[#0b2417]">{place.opening_hours}</p>
                   </div>
@@ -480,7 +480,7 @@ export default function PlaceDetailModal({
 
             {/* Safety & Advisory */}
             {(place.safety_level || place.safety_tips || place.warnings) && (
-              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#faf7f0] p-3.5">
+              <div className="rounded-2xl border-2 border-[#a06a1d] bg-[#E5E5E5] p-3.5">
                 <div className="flex items-center gap-2 text-amber-900 ">
                   <Shield size={16} />
                   <h4 className="text-base font-bold">Safety & Travel Advisory</h4>

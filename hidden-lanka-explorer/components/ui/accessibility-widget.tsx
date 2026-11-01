@@ -155,7 +155,7 @@ export default function AccessibilityWidget() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Open accessibility tools"
         title="Accessibility tools"
-        className="fixed bottom-6 right-6 z-[9999] flex h-16 w-16 items-center justify-center rounded-full bg-[#d9222a] text-white shadow-[0_8px_30px_rgba(217,34,42,0.55)] transition-all duration-300 hover:scale-110 hover:bg-[#c01820] focus:outline-none focus:ring-4 focus:ring-red-300 cursor-pointer active:scale-95 border-2 border-white/20"
+        className="fixed bottom-6 right-6 z-[9999] flex h-16 w-16 items-center justify-center rounded-full bg-[blue] text-white shadow-[] transition-all duration-300 hover:scale-110 hover:bg-[] focus:outline-none focus:ring-4 focus:ring-blue-300 cursor-pointer active:scale-95 border-2 border-white/20"
       >
         {/* Outstretched arms & legs universal accessibility stick figure inside circle */}
         <svg

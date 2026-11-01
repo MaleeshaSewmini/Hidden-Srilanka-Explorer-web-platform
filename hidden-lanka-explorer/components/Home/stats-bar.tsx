@@ -54,12 +54,12 @@ function CountUp({ number }: { number: string }) {
 
 export default function StatsBar() {
   return (
-    <section className="bg-[#0b2417] text-white">
-      <div className="container-main grid grid-cols-2 divide-white/10 md:grid-cols-4 md:divide-x">
+    <section className="bg-[#292F38] text-white">
+      <div className="container-main mx-auto max-w-5xl grid grid-cols-2 divide-white/10 md:grid-cols-4 md:divide-x">
         {stats.map(([number, label]) => (
           <div
             key={label}
-            className="px-5 py-8 text-center md:px-8"
+            className="px-2 py-3 text-center md:px-8"
           >
             <div className="font-display text-3xl text-[#f1cf88] sm:text-4xl">
               <CountUp number={number} />

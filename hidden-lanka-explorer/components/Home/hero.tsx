@@ -38,7 +38,7 @@ useEffect(() => {
 
       <div className="absolute inset-0 bg-gradient-to-t via-transparent to-black/20" />
 
-      <div className="container-main relative flex min-h-[720px] items-center py-20">
+      <div className="container-main relative flex min-h-[800px] items-center py-20">
         <div className="max-w-4xl text-white">
           <div className="mb-5 flex items-center gap-2 text-base text-[#f1cf88]">
           
