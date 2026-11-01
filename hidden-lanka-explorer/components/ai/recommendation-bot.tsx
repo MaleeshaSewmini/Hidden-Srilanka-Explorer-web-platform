@@ -52,7 +52,7 @@ export default function RecommendationBot() {
       {
         id: "welcome",
         sender: "ai",
-        text: "Ayubowan! 🙏 I'm your **Lanka AI Guide**, specialized in discovering Sri Lanka's untold places, secluded waterfalls, secret beaches, and mountain trails.\n\nTell me your travel style, region, or who you're traveling with — or click a suggestion below!",
+        text: "Ayubowan! 🙏 I'm your Lanka AI Guide, specialized in discovering Sri Lanka's untold places, secluded waterfalls, secret beaches, and mountain trails.\n\nTell me your travel style, region, or who you're traveling with — or click a suggestion below!",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       },
     ]);
@@ -145,7 +145,7 @@ export default function RecommendationBot() {
           className="fixed bottom-6 left-6 z-[9990] flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#173b2c] via-[#22573f] to-[#123b26] px-4 py-3.5 text-white shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-emerald-900/40 active:scale-95 cursor-pointer border border-[#c99a43]/40 group"
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f1cf88]/20 text-[#f1cf88] transition group-hover:rotate-12">
-            <Sparkles size={16} />
+          
           </span>
           <span className="font-semibold text-sm tracking-tight text-[#f5ead7]">
             Ask AI Guide

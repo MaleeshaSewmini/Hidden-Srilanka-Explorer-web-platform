@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   CheckCircle2,
   Clock3,
@@ -54,7 +54,7 @@ type PlaceEditForm = {
   name: string;
   slug: string;
   district: string;
-  category: string;
+  category_id: string;
   nearest_town: string;
   address: string;
   short_description: string;
@@ -79,10 +79,7 @@ type PlaceEditForm = {
   hidden_tips: string;
 };
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
+const supabase = createClient();
 
 const statusMeta: Record<string, { label: string; badge: string; dot: string }> = {
   pending: {
@@ -159,10 +156,6 @@ export default function AdminDashboardPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    void loadPlaces();
-  }, []);
-
   const stats = useMemo(() => {
     const total = places.length;
     const pending = places.filter((place) => (place.status ?? "pending").toLowerCase() === "pending").length;
@@ -182,7 +175,7 @@ export default function AdminDashboardPage() {
   const selectedPlace =
     places.find((place) => place.id === selectedId) ?? places[0] ?? null;
 
-  async function loadPlaces() {
+  const loadPlaces = useCallback(async () => {
     try {
       setLoading(true);
       setErrorMessage("");
@@ -196,33 +189,83 @@ export default function AdminDashboardPage() {
         throw error;
       }
 
-      setPlaces(data ?? []);
-      if ((data ?? []).length > 0 && !selectedId) {
-        setSelectedId(data[0].id);
-      }
+      const sortedPlaces = [...(data ?? [])].sort((a, b) => {
+        const aPending = (a.status ?? "pending").toLowerCase() === "pending";
+        const bPending = (b.status ?? "pending").toLowerCase() === "pending";
+
+        if (aPending !== bPending) {
+          return aPending ? -1 : 1;
+        }
+
+        return (
+          new Date(b.created_at ?? 0).getTime() -
+          new Date(a.created_at ?? 0).getTime()
+        );
+      });
+
+      setPlaces(sortedPlaces);
+      setSelectedId((currentId) =>
+        currentId && sortedPlaces.some((place) => place.id === currentId)
+          ? currentId
+          : sortedPlaces[0]?.id ?? null
+      );
     } catch (error) {
       console.error("LOAD_PLACES_ERROR", error);
-      setErrorMessage("Unable to load places from Supabase. Check the table and RLS policy.");
+      setErrorMessage(
+        `Unable to load place submissions: ${getErrorMessage(error)}`
+      );
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+
+      if (!session) {
+        if (event === "INITIAL_SESSION" || event === "SIGNED_OUT") {
+          setPlaces([]);
+          setSelectedId(null);
+          setErrorMessage("Sign in with an account that can review place submissions.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      void loadPlaces();
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [loadPlaces]);
 
   async function handleStatusUpdate(placeId: string, nextStatus: "approved" | "rejected") {
     try {
       setUpdating(placeId);
       setErrorMessage("");
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("places")
         .update({
           status: nextStatus,
           is_verified: nextStatus === "approved",
         })
-        .eq("id", placeId);
+        .eq("id", placeId)
+        .select("id")
+        .maybeSingle();
 
       if (error) {
         throw error;
+      }
+
+      if (!data) {
+        throw new Error("No place was updated. Check that you have review access.");
       }
 
       await loadPlaces();
@@ -239,7 +282,7 @@ export default function AdminDashboardPage() {
       name: place.name ?? "",
       slug: place.slug ?? "",
       district: place.district ?? "",
-      category: place.category ?? "",
+      category_id: place.category_id ?? "",
       nearest_town: place.nearest_town ?? "",
       address: place.address ?? "",
       short_description: place.short_description ?? "",
@@ -276,7 +319,7 @@ export default function AdminDashboardPage() {
       "name",
       "slug",
       "district",
-      "category",
+      "category_id",
       "description",
     ];
     if (requiredFields.some((field) => !editDraft[field].trim())) {
@@ -309,7 +352,7 @@ export default function AdminDashboardPage() {
           name: editDraft.name.trim(),
           slug: editDraft.slug.trim() || null,
           district: editDraft.district.trim() || null,
-          category: editDraft.category.trim() || null,
+          category_id: editDraft.category_id.trim() || null,
           nearest_town: editDraft.nearest_town.trim() || null,
           address: editDraft.address.trim() || null,
           short_description: editDraft.short_description.trim() || null,
@@ -390,7 +433,7 @@ export default function AdminDashboardPage() {
             required={
               field === "name" ||
               field === "slug" ||
-              field === "category" ||
+              field === "category_id" ||
               field === "district"
             }
             value={value}
@@ -602,7 +645,7 @@ export default function AdminDashboardPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       {renderEditField("Place name", "name")}
                       {renderEditField("Slug", "slug")}
-                      {renderEditField("Category", "category")}
+                      {renderEditField("Category", "category_id")}
                       {renderEditField("District", "district")}
                       {renderEditField("Nearest town", "nearest_town")}
                       {renderEditField("Address", "address")}

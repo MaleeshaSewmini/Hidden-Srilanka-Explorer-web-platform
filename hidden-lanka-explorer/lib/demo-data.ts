@@ -4,6 +4,7 @@ export const categories = [
     name: "Nature",
     icon: "🌿",
     description: "Forests, mountains and wild landscapes",
+    
   },
   {
     id: "temples",

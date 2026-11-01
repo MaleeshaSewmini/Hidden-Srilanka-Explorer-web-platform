@@ -163,7 +163,7 @@ const previousImage = () => {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f3eb] pb-20 font-sans text-[#24352b]">
+    <main className="min-h-screen bg-[#F4F7F6] pb-20 font-sans text-[#24352b]">
 
       {/* =====================================================
     HERO SECTION
@@ -378,7 +378,7 @@ const previousImage = () => {
               EXPLORE THE COLLECTION
             </p>
 
-           <h2 className="font-display text-4xl font-semibold tracking-[-0.03em] text-[#18372a] sm:text-5xl">
+           <h2 className="font-sans text-4xl font-semibold tracking-[-0.03em] text-[black] sm:text-5xl">
             Places worth discovering
            </h2>
 

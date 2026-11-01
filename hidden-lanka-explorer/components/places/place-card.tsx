@@ -75,7 +75,7 @@ export default function PlaceCard({ place }: PlaceCardProps) {
 
   return (
     <>
-      <article className="group flex flex-col justify-between overflow-hidden rounded-3xl border border-[#0b2417]/10 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+      <article className="overflow-hidden rounded-2xl border border-[#D8E1D7] bg-white shadow-md shadow-[#18372a]/10 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-[#18372a]/15">
         {/* Top Image or Authentic No-Image Placeholder */}
         <div>
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#0b2417]">
@@ -126,7 +126,7 @@ export default function PlaceCard({ place }: PlaceCardProps) {
               {place.name}
             </h3>
 
-            <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#61746a]">
+            <p className="mt-2 line-clamp-2 text-base leading-6 text-[black]">
               {place.short_description ||
                 place.description ||
                 "A stunning hidden gem ready to be explored."}
@@ -134,15 +134,15 @@ export default function PlaceCard({ place }: PlaceCardProps) {
 
             {/* Quick Specs */}
             <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-xl bg-[#f6f1e8] p-2.5">
-                <div className="text-[11px] text-[#718078]">Difficulty</div>
+              <div className="rounded-xl bg-[#D9CCB8] p-2.5">
+                <div className="text-[16px]  font-medium text-[black]">Difficulty</div>
                 <div className="mt-0.5 font-semibold text-[#0b2417]">
                   {difficultyText}
                 </div>
               </div>
 
-              <div className="rounded-xl bg-[#f6f1e8] p-2.5">
-                <div className="text-[11px] text-[#718078]">Best season</div>
+              <div className="rounded-xl bg-[#D9CCB8] p-2.5">
+                <div className="text-[16px]  font-medium  text-[black]">Best Season</div>
                 <div className="mt-0.5 font-semibold text-[#0b2417]">
                   {seasonText}
                 </div>

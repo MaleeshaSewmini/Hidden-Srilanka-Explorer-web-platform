@@ -9,7 +9,7 @@ import {
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { createPublicClient } from "@/lib/supabase/client";
 import "./add-places.css";
 
 const PlaceLocationPicker = dynamic(
@@ -25,10 +25,7 @@ const PlaceLocationPicker = dynamic(
   }
 );
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
+const supabase = createPublicClient();
 
 const DISTRICTS = [
   "Ampara",
@@ -210,48 +207,47 @@ export default function AddPlacePage() {
   // =====================================================
 
   useEffect(() => {
-    loadCategories();
-  }, []);
+    let cancelled = false;
 
-  async function loadCategories() {
-    try {
-      setLoadingCategories(true);
-      setErrorMessage("");
+    async function loadCategories() {
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("id, name")
+          .order("name", {
+            ascending: true,
+          });
 
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name")
-        .order("name", {
-          ascending: true,
-        });
+        if (error) {
+          throw error;
+        }
 
-      if (error) {
-        console.error(
-          "CATEGORY ERROR:",
-          error.message
-        );
+        if (!cancelled) {
+          setCategories(data ?? []);
+        }
+      } catch (error) {
+        console.error("CATEGORY LOAD ERROR:", error);
 
-        setErrorMessage(
-          "Unable to load categories. Please check your categories table."
-        );
-
-        return;
+        if (!cancelled) {
+          setErrorMessage(
+            error instanceof Error
+              ? `Unable to load categories: ${error.message}`
+              : "Unable to load categories."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingCategories(false);
+        }
       }
-
-      setCategories(data ?? []);
-    } catch (error) {
-      console.error(
-        "CATEGORY LOAD ERROR:",
-        error
-      );
-
-      setErrorMessage(
-        "Unable to load categories."
-      );
-    } finally {
-      setLoadingCategories(false);
     }
-  }
+
+    void loadCategories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // =====================================================
   // ACTIVITIES
@@ -282,9 +278,9 @@ export default function AddPlacePage() {
       return;
     }
 
-    if (!file.type.startsWith("image/")) {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setErrorMessage(
-        "Please select a valid image file."
+        "Please select a JPEG, PNG, or WebP image."
       );
       return;
     }
@@ -379,7 +375,6 @@ export default function AddPlacePage() {
   // =====================================================
 
   async function uploadHeroImage(
-    userId: string,
     placeSlug: string
   ) {
     if (!heroImage) {
@@ -393,7 +388,7 @@ export default function AddPlacePage() {
         ?.toLowerCase() || "jpg";
 
     const filePath =
-      `${userId}/${placeSlug}-${Date.now()}.${extension}`;
+      `community-submissions/${placeSlug}.${extension}`;
 
     const {
       error: uploadError,
@@ -487,30 +482,6 @@ export default function AddPlacePage() {
       setSubmitting(true);
 
       // -------------------------------------------------
-      // CURRENT USER
-      // -------------------------------------------------
-
-      const {
-        data: {
-          user,
-        },
-        error: userError,
-      } =
-        await supabase.auth.getUser();
-
-      if (userError) {
-        throw new Error(
-          userError.message
-        );
-      }
-
-      if (!user) {
-        throw new Error(
-          "You must be signed in to add a place."
-        );
-      }
-
-      // -------------------------------------------------
       // SLUG
       // -------------------------------------------------
 
@@ -525,7 +496,17 @@ export default function AddPlacePage() {
 
       // Add timestamp to make slug unique
       const slug =
-        `${baseSlug}-${Date.now()}`;
+        `${baseSlug}-${crypto.randomUUID()}`;
+
+      const selectedCategory = categories.find(
+        (category) => category.id === categoryId
+      );
+
+      if (!selectedCategory) {
+        throw new Error(
+          "The selected category is unavailable. Please reload the page and try again."
+        );
+      }
 
       // -------------------------------------------------
       // IMAGE
@@ -537,7 +518,6 @@ export default function AddPlacePage() {
       if (heroImage) {
         imageUrl =
           await uploadHeroImage(
-            user.id,
             slug
           );
       }
@@ -547,9 +527,9 @@ export default function AddPlacePage() {
       // -------------------------------------------------
 
       const placeData = {
-        created_by: user.id,
-
         category_id: categoryId,
+
+        category: selectedCategory.name,
 
         slug,
 
@@ -620,6 +600,12 @@ export default function AddPlacePage() {
         hero_image_url:
           imageUrl,
 
+        image_url:
+          imageUrl,
+
+        season:
+          bestSeason.trim() || "Year-Round",
+
         hidden_tips:
           hiddenTips.trim() || null,
 
@@ -635,11 +621,6 @@ export default function AddPlacePage() {
 
         rating_count: 0,
       };
-
-      console.log(
-        "Submitting place:",
-        placeData
-      );
 
       // -------------------------------------------------
       // INSERT
@@ -809,7 +790,7 @@ export default function AddPlacePage() {
         {/* SUCCESS */}
 
         {message && (
-          <div className="alert success">
+          <div className="alert success" role="status" aria-live="polite">
             <span>✓</span>
 
             <div>
@@ -821,7 +802,7 @@ export default function AddPlacePage() {
         {/* ERROR */}
 
         {errorMessage && (
-          <div className="alert error">
+          <div className="alert error" role="alert" aria-live="assertive">
             <span>!</span>
 
             <div>
@@ -833,6 +814,7 @@ export default function AddPlacePage() {
         <form
           onSubmit={handleSubmit}
           className="place-form"
+          noValidate
         >
 
           {/* =================================================

@@ -1,6 +1,6 @@
 "use client";
-
-import { useEffect, useState, FormEvent, ChangeEvent } from "react";
+ 
+import { useEffect, useRef, useState, FormEvent, ChangeEvent, ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -11,22 +11,21 @@ import {
   MapPin,
   Compass,
   Globe,
-  Settings,
-  LogOut,
+  Pencil,
   ArrowRight,
   Camera,
   CheckCircle2,
   AlertCircle,
   Loader2,
 } from "lucide-react";
-
+ 
 import PlaceCard from "@/components/places/place-card";
 import { PlaceDetail } from "@/components/places/place-detail-modal";
 import { useTrip } from "@/lib/trip-context";
 import { createClient } from "@/lib/supabase/client";
-
+ 
 const supabase = createClient();
-
+ 
 const CATEGORIES = [
   "Waterfalls",
   "Beaches",
@@ -39,9 +38,9 @@ const CATEGORIES = [
   "Ruins",
   "Villages",
 ];
-
+ 
 const LANGUAGES = ["Sinhala", "English", "Tamil"];
-
+ 
 const DISTRICTS = [
   "Ampara", "Anuradhapura", "Badulla", "Batticaloa", "Colombo", "Galle",
   "Gampaha", "Hambantota", "Jaffna", "Kalutara", "Kandy", "Kegalle",
@@ -49,7 +48,7 @@ const DISTRICTS = [
   "Mullaitivu", "Nuwara Eliya", "Polonnaruwa", "Puttalam", "Ratnapura",
   "Trincomalee", "Vavuniya",
 ];
-
+ 
 type UserProfile = {
   id: string;
   username: string;
@@ -64,6 +63,270 @@ type UserProfile = {
   website_url: string | null;
   created_at?: string | null;
 };
+ 
+/* ==========================================================================
+   LOOK & FEEL
+   A field-journal feel: forest-green cover, taped polaroid, passport stamps,
+   handwritten notes, flat colour and hard offset shadows. No glow, no glass.
+ 
+   Palette   forest #333333 · linen #ffffff · paper #fbfaf3 · ink #1f2a24
+             turmeric #b1b1b1 · stamp-blue #2f5d8a · chilli #b8402f  tumerics #f2e420
+             inks #757575
+   Fonts     Fraunces (headings) · Caveat (handwriting) · Instrument Sans (UI)
+   ========================================================================== */
+const STYLES = `
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+ 
+.hs-root{
+  --forest:#333333; --forest-2:#444444; --linen:#ffffff; --paper:#fbfaf3; --ink:#1f2a24; --muted:#5b685f;
+  --turmeric:#b1b1b1; --blue:#2f5d8a; --chilli:#b8402f; --cream:#f4efe0;
+  --serif:'Fraunces',Georgia,'Times New Roman',serif;
+  --hand:'Caveat','Segoe Print','Bradley Hand',cursive;
+  --sans:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  background:var(--linen); color:var(--ink); font-family:var(--sans);
+}
+.hs-root :focus-visible{ outline:3px solid var(--blue); outline-offset:3px; border-radius:8px; }
+.hs-serif{ font-family:var(--serif); } .hs-hand{ font-family:var(--hand); }
+ 
+/* ---------- hero ---------- */
+.hs-hero{ position:relative; background:var(--forest); color:var(--cream); padding:28px 0 96px; overflow:hidden; }
+.hs-contours,.hs-trail{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.hs-draw{ stroke-dasharray:1; stroke-dashoffset:1; animation:hs-draw 3.2s .3s var(--ease) forwards; }
+@keyframes hs-draw{ to{ stroke-dashoffset:0 } }
+.hs-torn{ position:absolute; left:0; bottom:-1px; width:100%; height:30px; display:block; }
+.hs-top{ display:flex; justify-content:flex-end; position:relative; z-index:2; }
+.hs-hero-inner{ position:relative; z-index:2; }
+.hs-hero-inner .hs-name,.hs-hero-inner .hs-sub,.hs-hero-inner .hs-line{ text-shadow:0 2px 14px rgba(0,0,0,.5); }
+ 
+/* collage of hidden places behind the hero */
+.hs-collage{ position:absolute; inset:-24px; z-index:0; display:grid; grid-template-columns:repeat(6,1fr); grid-auto-rows:170px;
+  grid-auto-flow:dense; gap:16px; padding:8px; transform:rotate(-2deg) scale(1.05); pointer-events:none; }
+.hs-photo-bg{ position:absolute; inset:-4%; z-index:0; background-color:var(--forest); background-size:cover; background-position:center 40%;
+  background-repeat:no-repeat; filter:saturate(1.08) contrast(1.04); animation:hs-kb 28s ease-in-out infinite alternate; }
+.hs-shade{ position:absolute; inset:0; z-index:1; background:rgba(34,34,34,.72); pointer-events:none; }
+.hs-trail{ z-index:1; }
+.hs-tile{ position:relative; margin:0; background:#fff; padding:6px 6px 26px; box-shadow:3px 5px 0 rgba(0,0,0,.4);
+  transform:rotate(var(--tr)); animation:hs-pin .8s var(--ease) both; animation-delay:calc(var(--i) * 80ms); }
+.hs-tile:nth-child(1){ grid-column:span 2; grid-row:span 2; }
+.hs-tile:nth-child(4){ grid-column:span 2; }
+.hs-tile:nth-child(7){ grid-row:span 2; }
+.hs-tile:nth-child(11){ grid-column:span 2; }
+.hs-tile-in{ position:absolute; inset:6px 6px 26px; overflow:hidden; background:var(--tone); }
+.hs-tile-fb{ position:absolute; inset:0; display:grid; place-items:center; padding:8px; text-align:center;
+  font-family:var(--serif); font-weight:700; font-size:14px; color:rgba(255,255,255,.85); background:var(--tone); }
+.hs-tile-in img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; animation:hs-kb 20s ease-in-out infinite alternate; }
+.hs-tile figcaption{ position:absolute; left:0; right:0; bottom:2px; text-align:center; font-family:var(--hand); font-size:17px; line-height:1; color:var(--ink); }
+@keyframes hs-pin{ from{ opacity:0; transform:translateY(-20px) rotate(calc(var(--tr) - 8deg)) } to{ opacity:1; transform:rotate(var(--tr)) } }
+@keyframes hs-kb{ from{ transform:scale(1) } to{ transform:scale(1.09) translate(-1.5%,-1%) } }
+.hs-hero-grid{ display:grid; grid-template-columns:auto 1fr; gap:48px; align-items:center; margin-top:8px; }
+
+@keyframes hs-drop{ from{ opacity:0; transform:translateY(-26px) rotate(-10deg) } to{ opacity:1; transform:translateY(0) rotate(var(--r,-3deg)) } }
+@keyframes hs-up{ from{ opacity:0; transform:translateY(16px) } to{ opacity:1; transform:none } }
+.hs-in-2,.hs-in-3,.hs-in-4{ opacity:0; animation:hs-up .7s var(--ease) forwards; }
+.hs-in-2{ animation-delay:.35s } .hs-in-3{ animation-delay:.5s } .hs-in-4{ animation-delay:.65s }
+
+/* polaroid */
+.hs-polaroid{ --r:-3deg; position:relative; margin:0; background:#fff; padding:12px 12px 14px; width:244px;
+  box-shadow:6px 8px 0 rgba(0,0,0,.28); transform:rotate(var(--r)); animation:hs-drop .9s var(--ease) both;
+  transition:transform .45s var(--ease); }
+.hs-polaroid:hover{ transform:rotate(-0.5deg) translateY(-4px); }
+.hs-photo{ position:relative; aspect-ratio:1/1; background:#d8dccc; overflow:hidden; }
+.hs-initial{ display:grid; place-items:center; width:100%; height:100%; font-family:var(--serif); font-weight:700; font-size:5rem; color:var(--forest); }
+.hs-polaroid figcaption{ margin-top:8px; text-align:center; font-family:var(--hand); font-size:1.7rem; line-height:1; color:var(--ink); }
+.hs-tape{ position:absolute; top:-14px; left:50%; width:92px; height:28px; transform:translateX(-50%) rotate(2deg);
+  background:rgba(206, 197, 177, 0.82); display:flex; align-items:center; justify-content:center; gap:6px;
+  font-size:11px; font-weight:700; color:var(--ink); cursor:pointer; border:0; transition:transform .3s var(--ease), background .2s; }
+.hs-tape:hover{ transform:translateX(-50%) rotate(-2deg) scale(1.08); background:var(--turmeric); }
+
+/* name, note, stamps */
+.hs-name{ font-family:var(--Arial); font-weight:400; font-size:clamp(2.4rem,6vw,4.4rem); line-height:1.02; letter-spacing:-.02em; margin:0; color:var(--cream); }
+.hs-sub{ margin:10px 0 0; font-size:17px; color:rgba(230, 229, 225, 0.72); }
+.hs-note{ position:relative; display:inline-block; max-width:34rem; margin-top:20px; padding:14px 20px 16px;
+  background:#f6efcf; color:var(--ink); font-family:var(--Aptos Display); font-size:1rem; line-height:1.15; font-weight:500;
+  transform:rotate(-1deg); box-shadow:4px 5px 0 rgba(0,0,0,.28); }
+.hs-note::before{ content:""; position:absolute; top:-9px; left:22px; width:54px; height:18px; background:rgba(47,93,138,.55); transform:rotate(-4deg); }
+.hs-stamps{ display:flex; flex-wrap:wrap; gap:14px; margin-top:24px; }
+.hs-stamp{ display:inline-flex; align-items:center; gap:6px; padding:6px 12px; font-family:var(--Arial); font-weight:700; font-size:13px;
+  color:var(--c,#f0b93a); border:2px solid var(--c,#f0b93a); outline:1px solid var(); outline-offset:2px; border-radius:4px;
+  transform:rotate(var(--sr,-2deg)); transition:transform .25s var(--ease); cursor:default; }
+.hs-stamp:nth-child(2){ --sr:2deg; --c:#cfe3c4; } .hs-stamp:nth-child(3){ --sr:-1deg; --c:#f4efe0; } .hs-stamp:nth-child(4){ --sr:1.5deg; --c:#9cc3e6; }
+.hs-stamp:hover{ transform:rotate(0) scale(1.06); }
+.hs-line{ margin:22px 0 0; font-size:15px; line-height:1.7; color:rgba(244,239,224,.85); max-width:36rem; }
+.hs-ulink{ color:var(--turmerics); font-weight:700; background:linear-gradient(currentColor,currentColor) 0 100%/100% 2px no-repeat;
+  padding:0 0 1px; transition:background-size .3s var(--ease), color .2s; cursor:pointer; }
+
+.hs-ghost-link{ color:var(--cream); font-size:14px; font-weight:600; padding:6px 2px; background:linear-gradient(currentColor,currentColor) 0 100%/0 2px no-repeat;
+  transition:background-size .3s var(--ease); cursor:pointer; }
+.hs-ghost-link:hover{ background-size:100% 2px; }
+
+/* ---------- tabs (folder tabs) ---------- */
+.hs-tabs{ display:flex; gap:6px; border-bottom:2px solid var(--ink); }
+.hs-tab{ display:flex; align-items:center; gap:8px; margin-bottom:-2px; padding:11px 18px; font-size:14px; font-weight:600; color:var(--muted);
+  border:2px solid transparent; border-bottom:2px solid transparent; border-radius:12px 12px 0 0; cursor:pointer;
+  transition:background .2s, color .2s, transform .25s var(--ease); }
+.hs-tab:hover{ color:var(--ink); background:rgba(31,42,36,.06); transform:translateY(-2px); }
+.hs-tab[aria-selected="true"]{ background:var(--turmeric); color:var(--ink); border-color:var(--ink); border-bottom-color:var(--turmeric); transform:none; }
+.hs-count{ display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 6px; border-radius:99px; font-size:12px; background:var(--ink); color:var(--paper); }
+.hs-panel{ animation:hs-up .5s var(--ease) both; }
+
+/* ---------- reveal on scroll ---------- */
+.hs-reveal{ opacity:0; transform:translateY(20px); transition:opacity .6s var(--ease), transform .6s var(--ease); }
+.hs-reveal.hs-seen{ opacity:1; transform:none; }
+
+/* ---------- cards ---------- */
+.hs-card{ transform:rotate(var(--cr,0deg)); transition:transform .4s var(--ease); }
+.hs-card:hover{ transform:rotate(0) translateY(-6px); }
+.hs-paper{ background:var(--paper); border:2px solid var(--ink); border-radius:16px; box-shadow:6px 6px 0 var(--ink); }
+.hs-empty{ text-align:center; padding:48px 24px; background:var(--paper); border:2px dashed var(--ink); border-radius:16px; }
+
+.hs-empty:hover .hs-empty-ico{ transform:rotate(6deg) scale(1.08); }
+.hs-skel{ height:280px; border-radius:16px; background:#d9ddcd; animation:hs-pulse 1.3s ease-in-out infinite; }
+@keyframes hs-pulse{ 50%{ opacity:.5 } }
+
+/* ---------- buttons + form ---------- */
+.hs-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:12px 22px; font-family:var(--Arial); font-size:17px; font-weight:400;
+  color:var(--paper); background:var(--forest); border:2px solid var(--ink); border-radius:10px;  cursor:pointer;
+  transition:transform .15s var(--ease), box-shadow .15s var(--ease), background .2s; }
+.hs-btn:hover{ transform:translate(-1px,-1px); box-shadow:5px 5px 0 var(--ink); background:var(--forest-2); }
+.hs-btn:active{ transform:translate(3px,3px); box-shadow:1px 1px 0 var(--ink); }
+.hs-btn:disabled{ opacity:.6; cursor:wait; transform:translate(2px,2px); box-shadow:2px 2px 0 var(--ink); }
+.hs-btn.light{ background:var(--paper); color:var(--ink); }
+.hs-label{ display:block; font-size:18px; font-weight:500; color:var(--ink); }
+.hs-hint{ font-size:12.5px; color:var(--muted); }
+.hs-input{ display:block; width:100%; margin-top:6px; padding:11px 13px; font-family:var(--sans); font-size:15px; color:var(--ink);
+  background:#fff; border:1.5px solid var(--ink); border-radius:8px; transition:box-shadow .2s, transform .2s; }
+.hs-input:focus{ outline:none; box-shadow:3px 3px 0 var(--turmeric); transform:translate(-1px,-1px); }
+.hs-pick{ padding:8px 14px; font-size:14px; font-weight:600; color:var(--ink); background:var(--paper); border:1.5px solid var(--ink); border-radius:8px; cursor:pointer;
+  transition:transform .2s var(--ease), background .2s, box-shadow .2s; }
+.hs-pick:hover{ transform:translateY(-2px); box-shadow:2px 3px 0 var(--ink); }
+.hs-pick:active{ transform:translateY(0); box-shadow:none; }
+.hs-pick.on{ background:var(--turmeric); box-shadow:2px 2px 0 var(--ink); transform:rotate(-1.5deg); }
+.hs-msg{ display:flex; align-items:center; gap:10px; margin-top:20px; padding:12px 14px; font-size:14px; font-weight:600; border:2px solid var(--ink); border-radius:10px; animation:hs-up .4s var(--ease) both; }
+.hs-msg.ok{ background:#d9ecd0; } .hs-msg.err{ background:#f6d6cf; }
+.hs-todo{ margin-top:20px; padding:12px 16px; background:#f6efcf; border:1.5px dashed var(--ink); border-radius:10px; font-family:var(--Arial); font-size:1rem; line-height:1.15; }
+
+/* ---------- responsive ---------- */
+@media (max-width:900px){
+  .hs-hero-grid{ grid-template-columns:1fr; gap:36px; justify-items:center; text-align:center; }
+  .hs-stamps{ justify-content:center; } 
+  .hs-note{ text-align:left; }
+}
+@media (max-width:640px){
+  .hs-hero{ padding-bottom:72px; }
+  .hs-polaroid{ width:200px; }
+  .hs-initial{ font-size:4rem; }
+  .hs-tab{ padding:10px 12px; font-size:13px; }
+  .hs-paper{ box-shadow:4px 4px 0 var(--ink); border-radius:14px; }
+  .hs-btn{ width:100%; }
+  .hs-note{ font-size:1.45rem; }
+}
+@media (hover:none){ .hs-card:hover,.hs-polaroid:hover{ transform:rotate(var(--cr,var(--r,0deg))); } }
+@media (prefers-reduced-motion:reduce){
+  .hs-root *,.hs-root *::before,.hs-root *::after{ animation-duration:.001ms !important; animation-delay:0s !important; transition-duration:.001ms !important; }
+  .hs-in-2,.hs-in-3,.hs-in-4,.hs-reveal{ opacity:1 !important; transform:none !important; }
+  .hs-draw{ stroke-dashoffset:0; }
+}
+`;
+
+/* ==========================================================================
+   SMALL UI HELPERS (presentation only)
+   ========================================================================== */
+
+// Gently lifts content in the first time it scrolls into view
+function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -5% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`hs-reveal ${seen ? "hs-seen" : ""}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// "waterfalls, caves and temples"
+function joinList(items: string[]) {
+  const l = items.map((i) => i.toLowerCase());
+  if (l.length <= 1) return l.join("");
+  return `${l.slice(0, -1).join(", ")} and ${l[l.length - 1]}`;
+}
+
+const TILTS = [-0.8, 0.6, -0.4, 0.9, -0.6, 0.5];
+
+function HeroBackdrop() {
+  return (
+    <>
+      {/* faint topographic lines */}
+      <svg className="hs-contours" viewBox="0 0 1440 520" preserveAspectRatio="xMidYMid slice" aria-hidden>
+        <g fill="none" stroke="rgba(244,239,224,.09)" strokeWidth="1.5">
+          <path d="M980 60 C1120 20 1300 90 1340 210 C1380 330 1250 440 1100 420 C940 400 860 300 880 190 C890 120 920 80 980 60Z" />
+          <path d="M1000 110 C1100 85 1240 130 1280 220 C1310 310 1220 390 1110 375 C990 360 930 290 940 205 C945 160 960 125 1000 110Z" />
+          <path d="M1030 160 C1100 145 1190 175 1215 235 C1235 295 1175 340 1110 330 C1040 320 1000 275 1005 225 C1008 195 1015 168 1030 160Z" />
+        </g>
+      </svg>
+      {/* a dashed trail that draws itself once */}
+      <svg className="hs-trail" viewBox="0 0 1440 520" preserveAspectRatio="xMidYMid slice" aria-hidden>
+        <defs>
+          <mask id="hsTrailMask">
+            <path
+              className="hs-draw"
+              pathLength={1}
+              d="M-20 440 C140 360 220 470 400 400 S640 250 820 330 S1100 470 1260 300 S1400 190 1470 230"
+              fill="none"
+              stroke="#fff"
+              strokeWidth="10"
+            />
+          </mask>
+        </defs>
+        <path
+          mask="url(#hsTrailMask)"
+          d="M-20 440 C140 360 220 470 400 400 S640 250 820 330 S1100 470 1260 300 S1400 190 1470 230"
+          fill="none"
+          stroke="rgba(2, 157, 188, 0.55)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="2 12"
+        />
+      </svg>
+    </>
+  );
+}
+
+function TornEdge() {
+  return (
+    <svg className="hs-torn" viewBox="0 0 1440 30" preserveAspectRatio="none" aria-hidden>
+      <path
+        fill="#e9ebdf"
+        d="M0 30 L0 14 L40 8 L85 16 L130 6 L190 15 L250 9 L300 17 L360 7 L420 14 L480 5 L545 13 L610 8 L670 16 L735 7 L800 14 L860 6 L930 15 L990 9 L1050 17 L1115 8 L1180 14 L1240 6 L1300 15 L1360 9 L1410 13 L1440 8 L1440 30 Z"
+      />
+    </svg>
+  );
+}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -336,12 +599,11 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f7f3eb] p-6 text-center">
+      <main className="hs-root flex min-h-screen items-center justify-center p-6 text-center">
+        <style>{STYLES}</style>
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-10 w-10 animate-spin text-[#102b20]" />
-          <p className="font-display text-lg font-bold text-[#102b20]">
-            Loading your explorer profile...
-          </p>
+          <Compass className="animate-spin text-[#27402f]" style={{ animationDuration: "3s" }} size={34} />
+          <p className="hs-serif text-lg font-bold text-[#27402f]">Loading your profile...</p>
         </div>
       </main>
     );
@@ -350,30 +612,19 @@ export default function ProfilePage() {
   // Not signed in state
   if (!user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f7f3eb] px-4 py-16">
-        <div className="w-full max-w-md rounded-3xl border border-[#d9d0bf] bg-white p-8 text-center shadow-xl">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#102b20] text-[#f1cf88]">
-            <Compass size={32} />
+      <main className="hs-root flex min-h-screen items-center justify-center px-4 py-16" style={{ background: "#27402f" }}>
+        <style>{STYLES}</style>
+        <div className="hs-paper w-full max-w-md p-8 text-center sm:p-10">
+          <div className="hs-empty-ico">
+            <Compass size={28} />
           </div>
-          <h2 className="mt-5 font-display text-2xl font-bold text-[#0b2417]">
-            Explorer Profile
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-[#61746a]">
-            Sign in to view your personalized explorer profile, access saved trips, and manage liked destinations.
+          <h2 className="hs-serif mt-6 text-3xl font-bold">Sign in to see your profile</h2>
+          <p className="mt-3 text-[15px] leading-relaxed text-[#5b685f]">
+            Your saved trips, liked places and explorer details live here once you&apos;re signed in.
           </p>
-          <div className="mt-6 flex flex-col gap-3">
-            <Link
-              href="/auth/sign-in"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#102b20] py-3 text-sm font-bold text-white transition hover:bg-[#183f2e]"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/auth/sign-up"
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#0b2417]/20 bg-[#faf7f0] py-3 text-sm font-bold text-[#0b2417] transition hover:bg-[#f6f1e8]"
-            >
-              Create Account
-            </Link>
+          <div className="mt-7 flex flex-col gap-3">
+            <Link href="/auth/sign-in" className="hs-btn">Sign in</Link>
+            <Link href="/auth/sign-up" className="hs-btn light">Create an account</Link>
           </div>
         </div>
       </main>
@@ -382,158 +633,140 @@ export default function ProfilePage() {
 
   const avatarSrc = photoPreview || profile?.avatar_url || null;
   const initial = (profile?.display_name || user.email || "E")[0].toUpperCase();
+  const handle = profile?.username || user.email?.split("@")[0];
+
+  const memberSince = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : null;
+
+  const missing = [
+    !profile?.avatar_url && "a photo",
+    !profile?.bio && "a short bio",
+    !profile?.district && "your home district",
+    !profile?.travel_style && "your travel style",
+    !profile?.experience_level && "your experience level",
+    !profile?.website_url && "a link",
+    (profile?.favorite_categories?.length || 0) === 0 && "favourite categories",
+    (profile?.languages?.length || 0) === 0 && "languages",
+  ].filter(Boolean) as string[];
+
+  const goEdit = () => {
+    setActiveTab("edit");
+    setTimeout(
+      () => document.getElementById("hs-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      60
+    );
+  };
+
+  const tabs: { id: "saved" | "likes" | "edit"; label: string; short: string; icon: ReactNode; count?: number }[] = [
+    { id: "saved", label: "Saved for trips", short: "Saved", icon: <Bookmark size={16} />, count: placeIds.length },
+    { id: "likes", label: "Liked places", short: "Liked", icon: <Heart size={16} />, count: likedPlaceIds.length },
+    { id: "edit", label: "Edit profile", short: "Edit", icon: <Pencil size={16} /> },
+  ];
 
   return (
-    <main className="min-h-screen bg-[#f7f3eb] pb-24 font-sans text-[#24352b]">
+    <main className="hs-root min-h-screen pb-24">
+      <style>{STYLES}</style>
+
       {/* =====================================================
-          PROFILE HERO BANNER
+          HERO
       ===================================================== */}
-      <section className="relative bg-gradient-to-b from-[#102b20] via-[#16382a] to-[#1d4635] pt-12 pb-24 text-white">
-        <div className="container-main">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            {/* Left: Avatar & User Identity */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-              <div className="relative h-24 w-24 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-full border-4 border-[#f1cf88] bg-[#0b2417] shadow-xl">
+      <section className="hs-hero">
+        <HeroBackdrop />
+        <div className="container-main hs-hero-inner">
+          <div className="hs-top">
+            <button type="button" onClick={handleSignOut} className="hs-ghost-link">
+              Sign out
+            </button>
+          </div>
+
+          <div className="hs-hero-grid">
+            <figure className="hs-polaroid">
+              <div className="hs-photo">
                 {avatarSrc ? (
-                  <Image
-                    src={avatarSrc}
-                    alt={profile?.display_name || "Profile"}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                  />
+                  <Image src={avatarSrc} alt={profile?.display_name || "Profile"} fill unoptimized className="object-cover" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center font-display text-4xl font-bold text-[#f1cf88]">
-                    {initial}
-                  </div>
+                  <div className="hs-initial">{initial}</div>
                 )}
               </div>
+              <figcaption>@{handle}</figcaption>
+              <button type="button" className="hs-tape" onClick={goEdit} aria-label="Change profile photo">
+                <Camera size={13} /> Change
+              </button>
+            </figure>
 
-              <div>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <h1 className="font-display text-3xl sm:text-4xl font-bold text-white">
-                    {profile?.display_name || "Explorer"}
-                  </h1>
+            <div>
+              <h1 className="hs-name hs-in-2">{profile?.display_name || "Explorer"}</h1>
+              {memberSince && <p className="hs-sub hs-in-2">Exploring Sri Lanka with us since {memberSince}</p>}
+
+              {profile?.bio && <p className="hs-note hs-in-3">{profile.bio}</p>}
+
+              {(profile?.district || profile?.travel_style || profile?.experience_level || profile?.website_url) && (
+                <div className="hs-stamps hs-in-3">
                   {profile?.district && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-[#f1cf88] backdrop-blur-md">
-                      <MapPin size={12} /> {profile.district}
+                    <span className="hs-stamp">
+                      <MapPin size={13} /> {profile.district}
                     </span>
                   )}
-                </div>
-
-                <p className="mt-1 text-sm font-medium text-white/70">
-                  @{profile?.username || user.email?.split("@")[0]}
-                </p>
-
-                {profile?.bio && (
-                  <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-white/85 italic">
-                    &ldquo;{profile.bio}&rdquo;
-                  </p>
-                )}
-
-                {/* Badges for Travel Style, Level, & Website */}
-                <div className="mt-3.5 flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs">
-                  {profile?.travel_style && (
-                    <span className="rounded-full bg-[#c99a43]/30 px-3 py-1 font-semibold text-[#f1cf88] border border-[#c99a43]/40">
-                      🎒 {profile.travel_style}
-                    </span>
-                  )}
-                  {profile?.experience_level && (
-                    <span className="rounded-full bg-white/10 px-3 py-1 font-medium text-white/90">
-                      🧭 {profile.experience_level} Explorer
-                    </span>
-                  )}
+                  {profile?.travel_style && <span className="hs-stamp">{profile.travel_style}</span>}
+                  {profile?.experience_level && <span className="hs-stamp">{profile.experience_level} explorer</span>}
                   {profile?.website_url && (
-                    <a
-                      href={profile.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-white hover:text-[#f1cf88]"
-                    >
-                      <Globe size={12} /> Website
+                    <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="hs-stamp" style={{ cursor: "pointer" }}>
+                      <Globe size={13} /> Website
                     </a>
                   )}
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* Right: Stats & Quick Sign-out */}
-            <div className="flex flex-col sm:flex-row md:flex-col items-center gap-3">
-              <div className="flex gap-4 rounded-2xl bg-black/30 p-3.5 backdrop-blur-md border border-white/10 text-center">
-                <div className="px-3">
-                  <span className="block font-display text-2xl font-bold text-[#f1cf88]">
-                    {placeIds.length}
-                  </span>
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-white/70">
-                    Saved Trips
-                  </span>
-                </div>
-                <div className="h-8 w-px bg-white/20 my-auto" />
-                <div className="px-3">
-                  <span className="block font-display text-2xl font-bold text-rose-300">
-                    {likedPlaceIds.length}
-                  </span>
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-white/70">
-                    Liked Places
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-rose-900/50 hover:text-white"
-              >
-                <LogOut size={13} /> Sign Out
-              </button>
+              <p className="hs-line hs-in-4">
+                <button type="button" className="hs-ulink" onClick={() => setActiveTab("saved")}>
+                  {placeIds.length} {placeIds.length === 1 ? "place" : "places"} saved
+                </button>{" "}
+                for trips and{" "}
+                <button type="button" className="hs-ulink" onClick={() => setActiveTab("likes")}>
+                  {likedPlaceIds.length} liked
+                </button>
+                .
+                {profile && profile.favorite_categories.length > 0 && (
+                  <> Into {joinList(profile.favorite_categories)}.</>
+                )}
+                {profile && profile.languages.length > 0 && <> Speaks {joinList(profile.languages)}.</>}
+                {missing.length > 0 && (
+                  <>
+                    {" "}
+                    <button type="button" className="hs-ulink" onClick={goEdit}>
+                      Finish your profile
+                    </button>{" "}
+                    ({missing.length} to go).
+                  </>
+                )}
+              </p>
             </div>
           </div>
         </div>
+        <TornEdge />
       </section>
 
       {/* =====================================================
-          TAB NAVIGATION CONTROLS
+          TABS
       ===================================================== */}
-      <div className="container-main -mt-10 relative z-20">
-        <div className="flex rounded-2xl border border-[#d9d0bf] bg-white p-1.5 shadow-lg max-w-xl mx-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab("saved")}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-bold transition ${
-              activeTab === "saved"
-                ? "bg-[#102b20] text-[#f1cf88] shadow-sm"
-                : "text-[#61746a] hover:text-[#102b20]"
-            }`}
-          >
-            <Bookmark size={15} />
-            Saved for Trips ({placeIds.length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("likes")}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-bold transition ${
-              activeTab === "likes"
-                ? "bg-[#102b20] text-rose-300 shadow-sm"
-                : "text-[#61746a] hover:text-[#102b20]"
-            }`}
-          >
-            <Heart size={15} />
-            Liked Places ({likedPlaceIds.length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("edit")}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-xs sm:text-sm font-bold transition ${
-              activeTab === "edit"
-                ? "bg-[#102b20] text-white shadow-sm"
-                : "text-[#61746a] hover:text-[#102b20]"
-            }`}
-          >
-            <Settings size={15} />
-            Edit Profile
-          </button>
+      <div id="hs-tabs" className="container-main mt-6 scroll-mt-4">
+        <div className="hs-tabs" role="tablist" aria-label="Profile sections">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t.id}
+              onClick={() => setActiveTab(t.id)}
+              className="hs-tab"
+            >
+              {t.icon}
+              <span className="hidden sm:inline">{t.label}</span>
+              <span className="sm:hidden">{t.short}</span>
+              {t.count !== undefined && <span className="hs-count">{t.count}</span>}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -541,50 +774,49 @@ export default function ProfilePage() {
           TAB 1: SAVED FOR TRIPS
       ===================================================== */}
       {activeTab === "saved" && (
-        <section className="container-main mt-10">
-          <div className="mb-6 flex items-center justify-between">
+        <section key="saved" className="hs-panel container-main mt-10">
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-bold text-[#102b20]">
-                Saved Trip Destinations
-              </h2>
-              <p className="text-xs text-[#61746a]">
-                Places you saved to your itinerary while browsing the Explore section.
+              <h2 className="font-Arial text-3xl font-medium">Saved trip destinations</h2>
+              <p className="mt-1 text-[15px] text-[#5b685f]">
+                Places you saved to your itinerary while browsing Explore.
               </p>
             </div>
-            <Link
-              href="/places"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#a06a1d] hover:underline"
-            >
-              Browse more places <ArrowRight size={13} />
+            <Link href="/places" className="group inline-flex items-center gap-1.5 text-sm font-bold text-[#2f5d8a]">
+              Browse more places
+              <ArrowRight size={15} className="transition-transform group-hover:translate-x-1.5" />
             </Link>
           </div>
 
           {loadingPlaces ? (
-            <div className="flex h-64 items-center justify-center rounded-3xl border border-[#d9d0bf] bg-white text-sm text-[#718078]">
-              Loading your saved trips...
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="hs-skel" />
+              ))}
             </div>
           ) : savedPlaces.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-[#cdbfa5] bg-white p-12 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#faf7f0] text-[#a06a1d]">
-                <Bookmark size={24} />
+            <Reveal>
+              <div className="hs-empty">
+                <div className="hs-empty-ico">
+                  
+                </div>
+                <h3 className="font-Arial mt-5 text-2xl font-medium">Nothing saved yet</h3>
+                <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-[#5b685f]">
+                  Find a waterfall nobody told you about, then tap the &ldquo;+&rdquo; on its card. It will wait for you here.
+                </p>
+                <Link href="/places" className="hs-btn mt-6">
+                  <Compass size={16} /> Explore hidden Sri Lanka
+                </Link>
               </div>
-              <h3 className="mt-4 font-display text-xl font-bold text-[#102b20]">
-                No places saved to your trip yet
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-[#61746a] max-w-md mx-auto">
-                Explore waterfalls, ancient ruins, and secret beaches across Sri Lanka. Click the &ldquo;+&rdquo; button on any place card to save it here!
-              </p>
-              <Link
-                href="/places"
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#102b20] px-5 py-2.5 text-xs font-bold text-white transition hover:bg-[#183f2e]"
-              >
-                <Compass size={14} /> Explore Hidden Sri Lanka
-              </Link>
-            </div>
+            </Reveal>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {savedPlaces.map((place) => (
-                <PlaceCard key={place.id} place={place} />
+            <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {savedPlaces.map((place, i) => (
+                <Reveal key={place.id} delay={(i % 4) * 70}>
+                  <div className="hs-card" style={{ ["--cr" as string]: `${TILTS[i % TILTS.length]}deg` }}>
+                    <PlaceCard place={place} />
+                  </div>
+                </Reveal>
               ))}
             </div>
           )}
@@ -595,50 +827,45 @@ export default function ProfilePage() {
           TAB 2: LIKED PLACES
       ===================================================== */}
       {activeTab === "likes" && (
-        <section className="container-main mt-10">
-          <div className="mb-6 flex items-center justify-between">
+        <section key="likes" className="hs-panel container-main mt-10">
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-bold text-[#102b20]">
-                Liked Places
-              </h2>
-              <p className="text-xs text-[#61746a]">
-                Destinations you gave a heart to in the Explorer section.
-              </p>
+              <h2 className="font-Arial text-3xl font-medium">Liked places</h2>
+              <p className="mt-1 text-[20px] text-[#5b685f]">Destinations you gave a heart to in Explore.</p>
             </div>
-            <Link
-              href="/places"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#a06a1d] hover:underline"
-            >
-              Find more favorites <ArrowRight size={13} />
+            <Link href="/places" className="group inline-flex items-center gap-1.5 text-sm font-bold text-[#2f5d8a]">
+              Find more favourites
+              <ArrowRight size={15} className="transition-transform group-hover:translate-x-1.5" />
             </Link>
           </div>
 
           {loadingPlaces ? (
-            <div className="flex h-64 items-center justify-center rounded-3xl border border-[#d9d0bf] bg-white text-sm text-[#718078]">
-              Loading liked places...
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="hs-skel" />
+              ))}
             </div>
           ) : likedPlaces.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-[#cdbfa5] bg-white p-12 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-500">
-                <Heart size={24} />
+            <Reveal>
+              <div className="hs-empty">
+                
+                <h3 className="font-Arial text-3xl font-medium">No hearts yet</h3>
+                <p className="mx-auto mt-2 max-w-md text-[18px] leading-relaxed text-[#5b685f]">
+                  Tap the heart on any place that makes you want to pack a bag. Your favourites will collect here.
+                </p>
+                <Link href="/places" className="hs-btn mt-6">
+                  Go to Explore
+                </Link>
               </div>
-              <h3 className="mt-4 font-display text-xl font-bold text-[#102b20]">
-                No liked places yet
-              </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-[#61746a] max-w-md mx-auto">
-                Discover Sri Lanka&apos;s hidden beauty. Tap the heart icon on any destination card to keep a collection of your favorite places here!
-              </p>
-              <Link
-                href="/places"
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#102b20] px-5 py-2.5 text-xs font-bold text-white transition hover:bg-[#183f2e]"
-              >
-                <Compass size={14} /> Go to Explore Section
-              </Link>
-            </div>
+            </Reveal>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {likedPlaces.map((place) => (
-                <PlaceCard key={place.id} place={place} />
+            <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {likedPlaces.map((place, i) => (
+                <Reveal key={place.id} delay={(i % 4) * 70}>
+                  <div className="hs-card" style={{ ["--cr" as string]: `${TILTS[(i + 2) % TILTS.length]}deg` }}>
+                    <PlaceCard place={place} />
+                  </div>
+                </Reveal>
               ))}
             </div>
           )}
@@ -649,279 +876,247 @@ export default function ProfilePage() {
           TAB 3: EDIT PROFILE FORM
       ===================================================== */}
       {activeTab === "edit" && (
-        <section className="container-main mt-10 max-w-3xl">
-          <div className="rounded-3xl border border-[#d9d0bf] bg-white p-6 sm:p-10 shadow-xl">
-            <div className="flex items-center gap-2 pb-4 border-b border-[#eee5d5]">
-              <Settings className="text-[#a06a1d]" size={22} />
-              <div>
-                <h2 className="font-display text-2xl font-bold text-[#102b20]">
-                  Update Explorer Profile
-                </h2>
-                <p className="text-xs text-[#61746a]">
-                  Modify your traveler persona, change preferences, and tell others about yourself.
-                </p>
-              </div>
-            </div>
+        <section key="edit" className="hs-panel container-main mt-10 max-w-3xl">
+          <div className="hs-paper p-5 sm:p-10">
+            <h2 className="font-Arial text-3xl font-medium">Edit your profile</h2>
+            <p className="mt-1 text-[18px] text-[#5b685f]">
+              This is how other explorers in the community will see you.
+            </p>
+
+            {missing.length > 0 && (
+              <p className="hs-todo">Still blank: {joinList(missing)}.</p>
+            )}
 
             {editSuccessMessage && (
-              <div className="mt-5 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">
-                <CheckCircle2 size={16} />
+              <div className="hs-msg ok" role="status">
+                <CheckCircle2 size={18} />
                 {editSuccessMessage}
               </div>
             )}
 
             {editErrorMessage && (
-              <div className="mt-5 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
-                <AlertCircle size={16} />
+              <div className="hs-msg err" role="alert">
+                <AlertCircle size={18} />
                 {editErrorMessage}
               </div>
             )}
 
-            <form onSubmit={handleUpdateProfile} className="mt-6 space-y-6">
+            <form onSubmit={handleUpdateProfile} className="mt-8 space-y-8">
               {/* Photo Upload */}
-              <div className="flex items-center gap-5">
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-[#d9d0bf] bg-[#faf7f0]">
-                  {avatarSrc ? (
-                    <Image
-                      src={avatarSrc}
-                      alt="Avatar Preview"
-                      fill
-                      unoptimized
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center font-display text-2xl font-bold text-[#102b20]">
-                      {initial}
+              <Reveal>
+                <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+                  <div className="hs-polaroid" style={{ width: 120, padding: "7px 7px 9px", ["--r" as string]: "2deg" }}>
+                    <div className="hs-photo">
+                      {avatarSrc ? (
+                        <Image src={avatarSrc} alt="Avatar preview" fill unoptimized className="object-cover" />
+                      ) : (
+                        <div className="hs-initial" style={{ fontSize: "2.6rem" }}>{initial}</div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                    Profile Photo
-                  </label>
-                  <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#d9d0bf] bg-[#faf7f0] px-4 py-2 text-xs font-semibold text-[#102b20] transition hover:bg-[#f6f1e8]">
-                    <Camera size={14} /> Choose New Photo
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handlePhotoChange}
-                      className="hidden"
-                    />
-                  </label>
-                  <span className="block mt-1 text-[11px] text-[#718078]">
-                    PNG, JPG, or WEBP up to 5MB
-                  </span>
+                  <div className="text-center sm:text-left">
+                    <span className="hs-label">Profile photo</span>
+                    <label className="hs-btn light mt-2 cursor-pointer !py-2.5 !text-[13px]">
+                      <Camera size={15} /> Choose a new photo
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handlePhotoChange}
+                        className="sr-only"
+                      />
+                    </label>
+                    <span className="hs-hint mt-2 block">PNG, JPG or WebP, up to 5MB</span>
+                  </div>
                 </div>
-              </div>
+              </Reveal>
 
               {/* Display Name & Username */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                    Display Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editForm.display_name}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, display_name: e.target.value })
-                    }
-                    className="mt-1.5 w-full rounded-xl border border-[#d9d0bf] bg-white px-3.5 py-2.5 text-xs text-[#102b20] focus:border-[#102b20] focus:outline-none"
-                  />
-                </div>
+              <Reveal>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label className="hs-label" htmlFor="display_name">Display name</label>
+                    <input
+                      id="display_name"
+                      type="text"
+                      required
+                      value={editForm.display_name}
+                      onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                      className="hs-input"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editForm.username}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, username: e.target.value })
-                    }
-                    className="mt-1.5 w-full rounded-xl border border-[#d9d0bf] bg-white px-3.5 py-2.5 text-xs text-[#102b20] focus:border-[#102b20] focus:outline-none"
-                  />
+                  <div>
+                    <label className="hs-label" htmlFor="username">Username</label>
+                    <input
+                      id="username"
+                      type="text"
+                      required
+                      value={editForm.username}
+                      onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                      className="hs-input"
+                    />
+                  </div>
                 </div>
-              </div>
+              </Reveal>
 
               {/* Bio */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                  Bio (Short Explorer Story)
-                </label>
-                <textarea
-                  rows={3}
-                  value={editForm.bio}
-                  onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                  placeholder="Tell fellow travelers what you love about exploring hidden Sri Lanka..."
-                  className="mt-1.5 w-full rounded-xl border border-[#d9d0bf] bg-white px-3.5 py-2.5 text-xs text-[#102b20] focus:border-[#102b20] focus:outline-none leading-relaxed"
-                />
-              </div>
-
-              {/* District & Travel Style */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              <Reveal>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                    District
-                  </label>
-                  <select
-                    value={editForm.district}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, district: e.target.value })
-                    }
-                    className="mt-1.5 w-full rounded-xl border border-[#d9d0bf] bg-white px-3.5 py-2.5 text-xs text-[#102b20] focus:border-[#102b20] focus:outline-none"
-                  >
-                    <option value="">Select your home or base district</option>
-                    {DISTRICTS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                    Travel Style
-                  </label>
-                  <select
-                    value={editForm.travel_style}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, travel_style: e.target.value })
-                    }
-                    className="mt-1.5 w-full rounded-xl border border-[#d9d0bf] bg-white px-3.5 py-2.5 text-xs text-[#102b20] focus:border-[#102b20] focus:outline-none"
-                  >
-                    <option value="">Choose your primary style</option>
-                    <option value="Hiker & Nature Lover">Hiker & Nature Lover</option>
-                    <option value="Road Tripper">Road Tripper</option>
-                    <option value="Heritage & Culture Explorer">Heritage & Culture Explorer</option>
-                    <option value="Solo Backpacker">Solo Backpacker</option>
-                    <option value="Photographer">Photographer</option>
-                    <option value="Wildlife Enthusiast">Wildlife Enthusiast</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Experience Level & Website */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                    Experience Level
-                  </label>
-                  <select
-                    value={editForm.experience_level}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, experience_level: e.target.value })
-                    }
-                    className="mt-1.5 w-full rounded-xl border border-[#d9d0bf] bg-white px-3.5 py-2.5 text-xs text-[#102b20] focus:border-[#102b20] focus:outline-none"
-                  >
-                    <option value="">Select level</option>
-                    <option value="Beginner">Beginner Explorer</option>
-                    <option value="Intermediate">Intermediate Explorer</option>
-                    <option value="Seasoned Pathfinder">Seasoned Pathfinder</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                    Website or Social Link
-                  </label>
-                  <input
-                    type="url"
-                    value={editForm.website_url}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, website_url: e.target.value })
-                    }
-                    placeholder="https://instagram.com/yourhandle"
-                    className="mt-1.5 w-full rounded-xl border border-[#d9d0bf] bg-white px-3.5 py-2.5 text-xs text-[#102b20] focus:border-[#102b20] focus:outline-none"
+                  <label className="hs-label" htmlFor="bio">A few words about you</label>
+                  <textarea
+                    id="bio"
+                    rows={4}
+                    value={editForm.bio}
+                    onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                    placeholder="Tell fellow travellers what you love about exploring hidden Sri Lanka..."
+                    className="hs-input leading-relaxed"
                   />
                 </div>
-              </div>
+              </Reveal>
+
+              {/* District & Travel Style */}
+              <Reveal>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label className="hs-label" htmlFor="district">Home district</label>
+                    <select
+                      id="district"
+                      value={editForm.district}
+                      onChange={(e) => setEditForm({ ...editForm, district: e.target.value })}
+                      className="hs-input"
+                    >
+                      <option value="">Select your home or base district</option>
+                      {DISTRICTS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="hs-label" htmlFor="travel_style">Travel style</label>
+                    <select
+                      id="travel_style"
+                      value={editForm.travel_style}
+                      onChange={(e) => setEditForm({ ...editForm, travel_style: e.target.value })}
+                      className="hs-input"
+                    >
+                      <option value="">Choose your primary style</option>
+                      <option value="Hiker & Nature Lover">Hiker & Nature Lover</option>
+                      <option value="Road Tripper">Road Tripper</option>
+                      <option value="Heritage & Culture Explorer">Heritage & Culture Explorer</option>
+                      <option value="Solo Backpacker">Solo Backpacker</option>
+                      <option value="Photographer">Photographer</option>
+                      <option value="Wildlife Enthusiast">Wildlife Enthusiast</option>
+                    </select>
+                  </div>
+                </div>
+              </Reveal>
+
+              {/* Experience Level & Website */}
+              <Reveal>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <label className="hs-label" htmlFor="experience_level">Experience level</label>
+                    <select
+                      id="experience_level"
+                      value={editForm.experience_level}
+                      onChange={(e) => setEditForm({ ...editForm, experience_level: e.target.value })}
+                      className="hs-input"
+                    >
+                      <option value="">Select level</option>
+                      <option value="Beginner">Beginner Explorer</option>
+                      <option value="Intermediate">Intermediate Explorer</option>
+                      <option value="Seasoned Pathfinder">Seasoned Pathfinder</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="hs-label" htmlFor="website_url">Website or social link</label>
+                    <input
+                      id="website_url"
+                      type="url"
+                      value={editForm.website_url}
+                      onChange={(e) => setEditForm({ ...editForm, website_url: e.target.value })}
+                      placeholder="https://instagram.com/yourhandle"
+                      className="hs-input"
+                    />
+                  </div>
+                </div>
+              </Reveal>
 
               {/* Favorite Categories */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                  Favorite Categories
-                </label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {CATEGORIES.map((cat) => {
-                    const isSelected = editForm.favorite_categories.includes(cat);
-                    return (
-                      <button
-                        type="button"
-                        key={cat}
-                        onClick={() => {
-                          const updated = isSelected
-                            ? editForm.favorite_categories.filter((c) => c !== cat)
-                            : [...editForm.favorite_categories, cat];
-                          setEditForm({ ...editForm, favorite_categories: updated });
-                        }}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          isSelected
-                            ? "bg-[#102b20] text-[#f1cf88]"
-                            : "bg-[#faf7f0] text-[#718078] hover:bg-[#f6f1e8]"
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    );
-                  })}
+              <Reveal>
+                <div>
+                  <span className="hs-label">What are you into?</span>
+                  <div className="mt-3 flex flex-wrap gap-2.5">
+                    {CATEGORIES.map((cat) => {
+                      const isSelected = editForm.favorite_categories.includes(cat);
+                      return (
+                        <button
+                          type="button"
+                          key={cat}
+                          aria-pressed={isSelected}
+                          onClick={() => {
+                            const updated = isSelected
+                              ? editForm.favorite_categories.filter((c) => c !== cat)
+                              : [...editForm.favorite_categories, cat];
+                            setEditForm({ ...editForm, favorite_categories: updated });
+                          }}
+                          className={`hs-pick ${isSelected ? "on" : ""}`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </Reveal>
 
               {/* Languages Spoken */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#102b20]">
-                  Languages Spoken
-                </label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {LANGUAGES.map((lang) => {
-                    const isSelected = editForm.languages.includes(lang);
-                    return (
-                      <button
-                        type="button"
-                        key={lang}
-                        onClick={() => {
-                          const updated = isSelected
-                            ? editForm.languages.filter((l) => l !== lang)
-                            : [...editForm.languages, lang];
-                          setEditForm({ ...editForm, languages: updated });
-                        }}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          isSelected
-                            ? "bg-[#a06a1d] text-white"
-                            : "bg-[#faf7f0] text-[#718078] hover:bg-[#f6f1e8]"
-                        }`}
-                      >
-                        {lang}
-                      </button>
-                    );
-                  })}
+              <Reveal>
+                <div>
+                  <span className="hs-label">Languages you speak</span>
+                  <div className="mt-3 flex flex-wrap gap-2.5">
+                    {LANGUAGES.map((lang) => {
+                      const isSelected = editForm.languages.includes(lang);
+                      return (
+                        <button
+                          type="button"
+                          key={lang}
+                          aria-pressed={isSelected}
+                          onClick={() => {
+                            const updated = isSelected
+                              ? editForm.languages.filter((l) => l !== lang)
+                              : [...editForm.languages, lang];
+                            setEditForm({ ...editForm, languages: updated });
+                          }}
+                          className={`hs-pick ${isSelected ? "on" : ""}`}
+                        >
+                          {lang}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </Reveal>
 
               {/* Submit Button */}
-              <div className="pt-4 border-t border-[#eee5d5]">
-                <button
-                  type="submit"
-                  disabled={savingProfile}
-                  className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[#102b20] px-8 py-3 text-xs font-bold text-white transition hover:bg-[#183f2e] disabled:opacity-50"
-                >
-                  {savingProfile ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" /> Saving Changes...
-                    </>
-                  ) : (
-                    <>
-                       Save Profile Changes
-                    </>
-                  )}
-                </button>
-              </div>
+              <Reveal>
+                <div className="border-t-2  pt-6">
+                  <button type="submit" disabled={savingProfile} className="hs-btn sm:min-w-[220px]">
+                    {savingProfile ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" /> Saving...
+                      </>
+                    ) : (
+                      "Save changes"
+                    )}
+                  </button>
+                </div>
+              </Reveal>
             </form>
           </div>
         </section>
