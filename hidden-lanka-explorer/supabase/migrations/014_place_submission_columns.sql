@@ -1,0 +1,32 @@
+-- Ensure the places table matches the columns written by the submission form.
+alter table public.places
+  add column if not exists category_id uuid,
+  add column if not exists category text,
+  add column if not exists nearest_town text,
+  add column if not exists address text,
+  add column if not exists short_description text,
+  add column if not exists image_url text,
+  add column if not exists season text,
+  add column if not exists best_season text,
+  add column if not exists best_time text,
+  add column if not exists visit_duration text,
+  add column if not exists entrance_fee text,
+  add column if not exists opening_hours text,
+  add column if not exists distance_from_colombo double precision,
+  add column if not exists accessibility text,
+  add column if not exists transport text,
+  add column if not exists road_condition text,
+  add column if not exists activities text[] not null default '{}',
+  add column if not exists safety_level text,
+  add column if not exists safety_tips text,
+  add column if not exists warnings text,
+  add column if not exists hidden_tips text,
+  add column if not exists hero_image_url text,
+  add column if not exists created_by uuid,
+  add column if not exists is_verified boolean not null default false,
+  add column if not exists view_count integer not null default 0,
+  add column if not exists like_count integer not null default 0,
+  add column if not exists rating_avg double precision not null default 0,
+  add column if not exists rating_count integer not null default 0;
+
+notify pgrst, 'reload schema';

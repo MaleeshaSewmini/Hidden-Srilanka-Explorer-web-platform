@@ -116,7 +116,7 @@ export default function PlaceCard({ place }: PlaceCardProps) {
     <MapPin size={14} className="text-[#a06a1d]" />
     <span>{place.district || "Sri Lanka"}</span>
     <span className="text-[#b2bfb6]">•</span>
-    <span>{distanceText}</span>
+    
   </div>
 
             <h3

@@ -9,7 +9,7 @@ import {
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createPublicClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 import "./add-places.css";
 
 const PlaceLocationPicker = dynamic(
@@ -25,7 +25,7 @@ const PlaceLocationPicker = dynamic(
   }
 );
 
-const supabase = createPublicClient();
+const supabase = createClient();
 
 const DISTRICTS = [
   "Ampara",
@@ -374,50 +374,61 @@ export default function AddPlacePage() {
   // IMAGE UPLOAD
   // =====================================================
 
-  async function uploadHeroImage(
-    placeSlug: string
-  ) {
-    if (!heroImage) {
-      return null;
-    }
+ async function uploadHeroImage(
+  placeSlug: string
+): Promise<string | null> {
 
-    const extension =
-      heroImage.name
-        .split(".")
-        .pop()
-        ?.toLowerCase() || "jpg";
-
-    const filePath =
-      `community-submissions/${placeSlug}.${extension}`;
-
-    const {
-      error: uploadError,
-    } = await supabase.storage
-      .from("place-images")
-      .upload(
-        filePath,
-        heroImage,
-        {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: heroImage.type,
-        }
-      );
-
-    if (uploadError) {
-      throw new Error(
-        uploadError.message
-      );
-    }
-
-    const {
-      data,
-    } = supabase.storage
-      .from("place-images")
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
+  if (!heroImage) {
+    return null;
   }
+
+  // Check authentication
+  const {
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("Please log in before uploading images.");
+  }
+
+  // Validate image
+  if (!heroImage.type.startsWith("image/")) {
+    throw new Error("Please select a valid image.");
+  }
+
+  if (heroImage.size > 5 * 1024 * 1024) {
+    throw new Error("Image size must be less than 5 MB.");
+  }
+
+  // Generate unique filename
+  const extension =
+    heroImage.name.split(".").pop()?.toLowerCase() || "jpg";
+
+  const fileName =
+    `${placeSlug}-${crypto.randomUUID()}.${extension}`;
+
+  // Upload to existing place-images bucket
+  const { data, error } = await supabase.storage
+    .from("place-images")
+    .upload(fileName, heroImage, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: heroImage.type
+    });
+
+  if (error) {
+    console.error("Image upload error:", error);
+    throw new Error(error.message);
+  }
+
+  // Generate public URL
+  const { data: urlData } = supabase.storage
+    .from("place-images")
+    .getPublicUrl(data.path);
+
+  return urlData.publicUrl;
+}
 
   // =====================================================
   // SUBMIT
@@ -527,9 +538,10 @@ export default function AddPlacePage() {
       // -------------------------------------------------
 
       const placeData = {
+        
         category_id: categoryId,
 
-        category: selectedCategory.name,
+  
 
         slug,
 
@@ -599,12 +611,6 @@ export default function AddPlacePage() {
 
         hero_image_url:
           imageUrl,
-
-        image_url:
-          imageUrl,
-
-        season:
-          bestSeason.trim() || "Year-Round",
 
         hidden_tips:
           hiddenTips.trim() || null,
