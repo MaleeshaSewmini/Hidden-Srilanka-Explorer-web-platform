@@ -715,7 +715,7 @@ export default function AdminDashboardPage() {
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-2xl bg-[#f6f1e8] p-3">
                     <p className="text-xs uppercase tracking-[0.18em] text-[#718078]">Category</p>
-                    <p className="mt-2 font-semibold text-[#0b2417]">{selectedPlace.category ?? "Not set"}</p>
+                    <p className="mt-2 font-semibold text-[#0b2417]">{selectedPlace.category_id ?? "Not set"}</p>
                   </div>
                   <div className="rounded-2xl bg-[#f6f1e8] p-3">
                     <p className="text-xs uppercase tracking-[0.18em] text-[#718078]">Town</p>
