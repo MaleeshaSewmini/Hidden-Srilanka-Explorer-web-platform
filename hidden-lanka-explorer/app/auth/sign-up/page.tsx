@@ -233,6 +233,26 @@ export default function SignUpPage() {
         throw new Error("Account creation could not be completed.");
       }
 
+      // Send welcome email
+      try {
+        const emailRes = await fetch("/api/send-welcome-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: cleanEmail,
+            displayName: cleanDisplayName,
+          }),
+        });
+        const emailData = await emailRes.json();
+        if (!emailRes.ok) {
+          console.warn("Welcome email failed:", emailData.error);
+        } else {
+          console.log("Welcome email sent successfully:", emailData);
+        }
+      } catch (emailErr) {
+        console.error("Failed to trigger welcome email:", emailErr);
+      }
+
       // Save the profile and upload the avatar when a session exists.
       if (data.session) {
         let avatarUrl: string | null = null;
