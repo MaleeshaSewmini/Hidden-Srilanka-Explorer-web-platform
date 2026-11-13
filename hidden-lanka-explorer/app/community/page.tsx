@@ -145,9 +145,20 @@ const STYLES = `
 @keyframes cm-toast{ from{ opacity:0; transform:translateY(12px) } to{ opacity:1; transform:none } }
 
 /* ----- hero ----- */
-.cm-hero{ position:relative; isolation:isolate; overflow:hidden; color:#fff; background:var(--ink); padding:72px 0 30px; }
-.cm-hero-bg{ position:absolute; inset:0; z-index:-2; background:var(--ink) url('/footer.jpg') center 40% / cover no-repeat; }
-.cm-hero-shade{ position:absolute; inset:0; z-index:-1; background:rgba(10,32,40,.74); }
+.cm-hero{ position:relative; isolation:isolate; overflow:hidden; color:#fff; padding:72px 0 30px;
+  background:linear-gradient(135deg,#0a2d36 0%,#0f6b78 58%,#1c7d68 100%); }
+.cm-hero-bg{ position:absolute; inset:0; z-index:-4; background:
+  url('/footer.jpg') center 40% / cover no-repeat,
+  radial-gradient(ellipse 55% 85% at 84% 12%, rgba(232,168,76,.55) 0%, rgba(232,168,76,0) 62%),
+  linear-gradient(135deg,#0a2d36 0%,#0f6b78 58%,#1c7d68 100%); }
+.cm-hero-shade{ position:absolute; inset:0; z-index:-3;
+  background:linear-gradient(100deg, rgba(7,28,36,.9) 0%, rgba(9,46,55,.72) 52%, rgba(15,107,120,.38) 100%); }
+.cm-hero-glow{ position:absolute; inset:0; z-index:-2; pointer-events:none;
+  background:radial-gradient(ellipse 45% 70% at 88% 8%, rgba(240,178,84,.38) 0%, rgba(240,178,84,0) 65%); }
+.cm-hero-topo{ position:absolute; inset:0; z-index:-2; pointer-events:none; opacity:.9;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 400' preserveAspectRatio='xMaxYMid slice'%3E%3Cg fill='none' stroke='white' stroke-opacity='.13' stroke-width='1.2'%3E%3Cellipse cx='620' cy='170' rx='40' ry='24' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='80' ry='50' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='125' ry='80' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='175' ry='112' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='230' ry='148' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='290' ry='186' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='355' ry='226' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='260' cy='330' rx='60' ry='34' transform='rotate(10 260 330)'/%3E%3Cellipse cx='260' cy='330' rx='115' ry='68' transform='rotate(10 260 330)'/%3E%3Cellipse cx='260' cy='330' rx='180' ry='104' transform='rotate(10 260 330)'/%3E%3C/g%3E%3C/svg%3E") right center / cover no-repeat; }
+.cm-hero-ridge{ position:absolute; left:0; right:0; bottom:0; height:110px; z-index:-1; pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-opacity='.07' d='M0 120V70L90 40l70 28 100-52 90 58 110-44 120 60 100-38 130 52 110-48 120 40 100-30 80 24v60z'/%3E%3Cpath fill='white' fill-opacity='.1' d='M0 120V92l110-30 90 26 120-40 100 36 140-30 110 34 130-26 120 30 100-22 80 20v50z'/%3E%3C/svg%3E") bottom / 100% 100% no-repeat; }
 .cm-mask{ display:block; padding:.06em .2em .12em 0; margin:-.06em 0 -.12em; }
 .cm-line{ display:block; opacity:0; transform:translateX(calc(-1 * min(90vw,900px)));
   transition:transform 1.1s cubic-bezier(.16,1,.3,1), opacity .5s ease-out; transition-delay:calc(var(--i) * 120ms); }
@@ -211,20 +222,20 @@ const STYLES = `
 
 /* ----- review entries ----- */
 .cm-entry{ display:grid; grid-template-columns:190px 1fr; gap:8px 36px; padding:28px 0; border-bottom:1px solid var(--line); }
-.cm-rail{ font-size:13px; color:var(--muted); line-height:1.5; }
+.cm-rail{ font-size:15px; color:var(--muted); line-height:1.5; }
 .cm-rail .who{ display:flex; align-items:center; gap:10px; }
 .cm-avatar{ position:relative; display:grid; place-items:center; width:34px; height:34px; flex-shrink:0; border-radius:50%; overflow:hidden; background:#dde6ea; color:var(--ink); font-size:14px; font-weight:700; }
 .cm-avatar.lg{ width:46px; height:46px; font-size:17px; }
 .cm-rail .nm{ display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .cm-stars{ display:flex; gap:1px; margin-top:12px; color:var(--amber); }
 .cm-where{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); }
-.cm-where b{ color:var(--ink); font-size:14px; }
+.cm-where b{ color:var(--ink); font-size:15px; }
 .cm-thumb{ position:relative; width:32px; height:32px; flex-shrink:0; border-radius:4px; overflow:hidden; background:var(--band); }
 .cm-title{ margin:8px 0 0; font-size:20px; font-weight:700; line-height:1.3; color:var(--ink); }
-.cm-body{ margin:8px 0 0; line-height:1.75; color:#34484f; }
-.cm-note{ margin:14px 0 0; padding:2px 0 2px 14px; border-left:3px solid var(--amber); font-size:14px; color:#34484f; } .cm-note b{ color:var(--ink); }
+.cm-body{ margin:8px 0 0; line-height:1.75; color:#34484f; font-size:18px;}
+.cm-note{ margin:14px 0 0; padding:2px 0 2px 14px; border-left:3px solid var(--amber); font-size:16px; color:#34484f; } .cm-note b{ color:var(--ink); }
 .cm-acts{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 20px; margin-top:16px; font-size:13px; }
-.cm-act{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:var(--muted); cursor:pointer; transition:color .2s; }
+.cm-act{ display:inline-flex; align-items:center; gap:6px; font-size:15px; font-weight:700; color:var(--muted); cursor:pointer; transition:color .2s; }
 .cm-act:hover{ color:var(--ink); } .cm-act.rm:hover{ color:#b3261e; }
 .cm-act[aria-pressed="true"]{ color:#b3261e; } .cm-act[aria-pressed="true"] svg{ fill:#b3261e; }
 .cm-replies{ margin-top:16px; padding-left:16px; border-left:2px solid var(--line); }
@@ -561,8 +572,10 @@ export default function CommunityPage() {
           .order("created_at", { ascending: false });
 
         const loadedReviews: CommunityReview[] = [];
+        const profileById = new Map((profilesData || []).map((p) => [p.id, p]));
         if (dbReviews && dbReviews.length > 0) {
           dbReviews.forEach((r) => {
+            const reviewer = profileById.get(r.user_id);
             const matchedPlace = placesData?.find((p) => p.id === r.place_id);
             loadedReviews.push({
               id: r.id,
@@ -571,8 +584,8 @@ export default function CommunityPage() {
               place_district: matchedPlace?.district || "Sri Lanka",
               place_image: matchedPlace?.hero_image_url || null,
               author_id: r.user_id,
-              author_name: "Community Explorer",
-              author_handle: "@explorer",
+              author_name: reviewer?.display_name || reviewer?.username || "",
+              author_handle: reviewer?.username ? `@${reviewer.username}` : "",
               rating: r.rating || 5,
               title: `Review for ${matchedPlace?.name || "Place"}`,
               body: r.body || "",
@@ -591,15 +604,24 @@ export default function CommunityPage() {
             const nonDemoOnly = parsed.filter(
               (r) =>
                 !r.id.startsWith("story-") &&
+                r.author_name !== "Community Explorer" &&
                 !r.title.includes("Heeloya") &&
                 !r.title.includes("Ritigala") &&
                 !r.title.includes("Rangala") &&
                 !r.title.includes("Tangalle") &&
                 !r.title.includes("Golumale")
             );
+            // A review saved to Supabase is also kept in the browser, so skip a local copy
+            // when the same text for the same place is already loaded (matched by id or content)
+            const reviewKey = (r: CommunityReview) => `${r.place_id}|${(r.body || "").trim().toLowerCase()}`;
             const existingIds = new Set(loadedReviews.map((r) => r.id));
+            const existingKeys = new Set(loadedReviews.map(reviewKey));
             nonDemoOnly.forEach((r) => {
-              if (!existingIds.has(r.id)) loadedReviews.push(r);
+              const key = reviewKey(r);
+              if (existingIds.has(r.id) || existingKeys.has(key)) return;
+              existingIds.add(r.id);
+              existingKeys.add(key);
+              loadedReviews.push(r);
             });
           } catch (e) {
             console.error(e);
@@ -614,7 +636,7 @@ export default function CommunityPage() {
             const parsed: CommunityDiscussion[] = JSON.parse(savedDiscussions);
             const nonDemoOnly = parsed.filter(
               (d) =>
-                !d.id.startsWith("disc-") &&
+                !/^disc-\d{1,3}$/.test(d.id) && // only old demo ids (disc-1, disc-2); new ones are disc-<timestamp>
                 !d.title.includes("Illukkumbura") &&
                 !d.title.includes("Pitawala") &&
                 !d.title.includes("Dikwella")
@@ -632,7 +654,7 @@ export default function CommunityPage() {
             const parsed: CommunityTip[] = JSON.parse(savedTips);
             const nonDemoOnly = parsed.filter(
               (t) =>
-                !t.id.startsWith("tip-") &&
+                !/^tip-\d{1,3}$/.test(t.id) && // only old demo ids (tip-1, tip-2); new ones are tip-<timestamp>
                 !t.title.includes("Leech Protection") &&
                 !t.title.includes("Train Booking") &&
                 !t.title.includes("Temple Etiquette") &&
@@ -712,7 +734,11 @@ export default function CommunityPage() {
     const placeDistrict = selectedPlace?.district || "Sri Lanka";
     const placeImage = selectedPlace?.hero_image_url || null;
 
-    const authorName = formAuthorName.trim() || currentUser?.name || "Community Explorer";
+    const authorName = formAuthorName.trim() || currentUser?.name || "";
+    if (!authorName) {
+      alert("Please enter your name.");
+      return;
+    }
     const authorHandle = formAuthorHandle.trim()
       ? formAuthorHandle.startsWith("@")
         ? formAuthorHandle
@@ -1078,6 +1104,9 @@ export default function CommunityPage() {
       <section className="cm-hero">
         <div className="cm-hero-bg" aria-hidden />
         <div className="cm-hero-shade" aria-hidden />
+        <div className="cm-hero-glow" aria-hidden />
+        <div className="cm-hero-topo" aria-hidden />
+        <div className="cm-hero-ridge" aria-hidden />
 
         <div className="container-main">
           <h1 className="cm-h1">
@@ -1253,14 +1282,16 @@ export default function CommunityPage() {
                       <article key={rev.id} className="cm-entry cm-up" style={{ ["--i" as string]: Math.min(idx, 8) }}>
                         {/* Author rail */}
                         <div className="cm-rail">
-                          <div className="who">
-                            <span className="cm-avatar">{rev.author_name.charAt(0)}</span>
-                            <div>
-                              <span className="nm">{rev.author_name}</span>
-                              {rev.author_handle}
+                          {rev.author_name && (
+                            <div className="who">
+                              <span className="cm-avatar">{rev.author_name.charAt(0)}</span>
+                              <div>
+                                <span className="nm">{rev.author_name}</span>
+                                {rev.author_handle}
+                              </div>
                             </div>
-                          </div>
-                          <div style={{ marginTop: 10 }}>{new Date(rev.created_at).toLocaleDateString()}</div>
+                          )}
+                          <div style={{ marginTop: rev.author_name ? 10 : 0 }}>{new Date(rev.created_at).toLocaleDateString()}</div>
                           <StarRow rating={rev.rating} />
                         </div>
 
