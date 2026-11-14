@@ -3,7 +3,10 @@
 import { useState, useEffect, useMemo, useRef, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Search, X, Trash2, Star, ChevronDown, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import {
+  Heart, Search, X, Trash2, Star, ChevronDown, ChevronLeft, ChevronRight, ExternalLink,
+  MessageSquare, HelpCircle, AlertTriangle, Users, Leaf, Bookmark, MapPin, ArrowRight, Check, MessageCircle,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 /* ==========================================================================
@@ -115,9 +118,7 @@ type RealProfile = {
   created_at: string;
 };
 
-/* ==========================================================================
-   STORAGE KEYS FOR ZERO-DATA PERSISTENCE  (unchanged)
-   ========================================================================== */
+/* STORAGE KEYS  (unchanged) */
 const STORAGE_REVIEWS_KEY = "lanka_real_community_reviews";
 const STORAGE_DISCUSSIONS_KEY = "lanka_real_community_discussions";
 const STORAGE_TIPS_KEY = "lanka_real_community_tips";
@@ -125,195 +126,258 @@ const STORAGE_LIKES_KEY = "lanka_real_community_likes";
 
 /* ==========================================================================
    LOOK & FEEL  (presentation only)
-   Editorial, quiet and practical: Arial, flat colour, hairline dividers instead of
-   boxed cards, plain-language copy, and only one entrance animation (the heading).
-   The hero uses /footer.jpg; if that file is missing it falls back to deep teal.
+   Forest green + amber, three-column layout: section nav | feed | side cards.
+   Hero image: /footer.jpg (falls back to deep green if missing).
    ========================================================================== */
 const STYLES = `
 .cm-root{
-  --ink:#10252d; --text:#1d2f36; --muted:#5f7078; --line:#dfe5e8; --teal:#0f6b78; --amber:#b4620f; --band:#f5f7f8;
+  --green:#123d30; --green2:#1d5844; --leaf:#e6efe3; --amber:#e9b44c; --cream:#fbf4e3; --bg:white;
+  --ink:#16251f; --text:#2a3a33; --muted:#66756d; --line:#e4e8e1; --red:#b3261e;
   --ease:cubic-bezier(.22,1,.36,1);
-  font-family:Arial,Helvetica,sans-serif; background:#fff; color:var(--text); overflow-x:clip; font-size:15px; line-height:1.6;
+  font-family:Inter,"Segoe UI",Arial,Helvetica,sans-serif; background:var(--bg); color:var(--text); overflow-x:clip; font-size:14px; line-height:1.55;
 }
 .cm-root *{ font-family:inherit; }
-.cm-root :focus-visible{ outline:2px solid var(--teal); outline-offset:2px; border-radius:4px; }
+.cm-root :focus-visible{ outline:2px solid var(--green2); outline-offset:2px; border-radius:6px; }
 .cm-hide-scroll{ scrollbar-width:none; } .cm-hide-scroll::-webkit-scrollbar{ display:none; }
 
-/* ----- toast ----- */
-.cm-toast{ position:fixed; left:20px; bottom:20px; z-index:70; max-width:calc(100vw - 40px); padding:12px 16px; border-radius:6px;
-  background:var(--ink); color:#fff; font-size:14px; box-shadow:0 8px 24px rgba(16,37,45,.3); animation:cm-toast .35s var(--ease) both; }
+.cm-toast{ position:fixed; left:20px; bottom:20px; z-index:70; max-width:calc(150vw - 40px); padding:12px 16px; border-radius:8px;
+  background:var(--green); color:#fff; font-size:14px; box-shadow:0 8px 24px rgba(115, 125, 121, 0.3); animation:cm-toast .35s var(--ease) both; }
 @keyframes cm-toast{ from{ opacity:0; transform:translateY(12px) } to{ opacity:1; transform:none } }
 
 /* ----- hero ----- */
-.cm-hero{ position:relative; isolation:isolate; overflow:hidden; color:#fff; padding:72px 0 30px;
-  background:linear-gradient(135deg,#0a2d36 0%,#0f6b78 58%,#1c7d68 100%); }
-.cm-hero-bg{ position:absolute; inset:0; z-index:-4; background:
-  url('/footer.jpg') center 40% / cover no-repeat,
-  radial-gradient(ellipse 55% 85% at 84% 12%, rgba(232,168,76,.55) 0%, rgba(232,168,76,0) 62%),
-  linear-gradient(135deg,#0a2d36 0%,#0f6b78 58%,#1c7d68 100%); }
-.cm-hero-shade{ position:absolute; inset:0; z-index:-3;
-  background:linear-gradient(100deg, rgba(7,28,36,.9) 0%, rgba(9,46,55,.72) 52%, rgba(15,107,120,.38) 100%); }
-.cm-hero-glow{ position:absolute; inset:0; z-index:-2; pointer-events:none;
-  background:radial-gradient(ellipse 45% 70% at 88% 8%, rgba(240,178,84,.38) 0%, rgba(240,178,84,0) 65%); }
-.cm-hero-topo{ position:absolute; inset:0; z-index:-2; pointer-events:none; opacity:.9;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 400' preserveAspectRatio='xMaxYMid slice'%3E%3Cg fill='none' stroke='white' stroke-opacity='.13' stroke-width='1.2'%3E%3Cellipse cx='620' cy='170' rx='40' ry='24' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='80' ry='50' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='125' ry='80' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='175' ry='112' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='230' ry='148' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='290' ry='186' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='620' cy='170' rx='355' ry='226' transform='rotate(-14 620 170)'/%3E%3Cellipse cx='260' cy='330' rx='60' ry='34' transform='rotate(10 260 330)'/%3E%3Cellipse cx='260' cy='330' rx='115' ry='68' transform='rotate(10 260 330)'/%3E%3Cellipse cx='260' cy='330' rx='180' ry='104' transform='rotate(10 260 330)'/%3E%3C/g%3E%3C/svg%3E") right center / cover no-repeat; }
-.cm-hero-ridge{ position:absolute; left:0; right:0; bottom:0; height:110px; z-index:-1; pointer-events:none;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-opacity='.07' d='M0 120V70L90 40l70 28 100-52 90 58 110-44 120 60 100-38 130 52 110-48 120 40 100-30 80 24v60z'/%3E%3Cpath fill='white' fill-opacity='.1' d='M0 120V92l110-30 90 26 120-40 100 36 140-30 110 34 130-26 120 30 100-22 80 20v50z'/%3E%3C/svg%3E") bottom / 100% 100% no-repeat; }
+.cm-hero{ position:relative; isolation:isolate; overflow:hidden; color:#fff; padding:64px 0 56px; background:var(--green); }
+.cm-hero-bg{ position:absolute; inset:0; z-index:-3; background:url('/footer.jpg') center 40% / cover no-repeat, var(--green); }
+.cm-hero-shade{ position:absolute; inset:0; z-index:-2; background:linear-gradient(95deg, rgba(107, 113, 111, 0.95) 0%, rgba(14,52,40,.8) 48%, rgba(18,61,48,.45) 100%); }
+.cm-eyebrow{ margin:0 0 14px; font-size:13px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.7); }
 .cm-mask{ display:block; padding:.06em .2em .12em 0; margin:-.06em 0 -.12em; }
 .cm-line{ display:block; opacity:0; transform:translateX(calc(-1 * min(90vw,900px)));
   transition:transform 1.1s cubic-bezier(.16,1,.3,1), opacity .5s ease-out; transition-delay:calc(var(--i) * 120ms); }
 .cm-in .cm-line{ opacity:1; transform:none; }
-.cm-h1{ margin:0; max-width:46rem; font-size:clamp(1.9rem,4.4vw,3rem); font-weight:700; line-height:1.12; letter-spacing:-.01em; }
-.cm-lead{ margin:14px 0 0; max-width:45rem; font-size:18px; line-height:2; color:rgba(255,255,255,.82); }
-.cm-cta{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px; margin-top:22px; }
-.cm-facts{ margin:22px 0 0; padding-top:14px; border-top:1px solid rgba(255,255,255,.22); font-size:18px; color:rgba(255,255,255,.72); }
-.cm-facts b{ color:#fff; font-size:16px; }
+.cm-h1{ margin:0; max-width:34rem; font-size:clamp(2rem,4.6vw,3.1rem); font-weight:500; line-height:1.12; letter-spacing:-.015em; }
+.cm-lead{ margin:16px 0 0; max-width:30rem; font-size:19px; line-height:1.65; color:rgba(255,255,255,.8); }
+.cm-cta{ display:flex; flex-wrap:wrap; align-items:center; gap:12px 24px; margin-top:24px; }
+.cm-chip-loc{ position:absolute; right:0; bottom:-30px; display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:8px; font-size:16px; font-weight:400; color:black; background:rgba(30, 31, 30, 0.88); }
+.cm-herowrap{ position:relative; }
 .cm-fade{ opacity:0; } .cm-in .cm-fade{ animation:cm-fadein .8s ease-out both; animation-delay:calc(.7s + var(--d,0) * .12s); }
 @keyframes cm-fadein{ from{ opacity:0 } to{ opacity:1 } }
 
-/* ----- buttons (flat, no lift) ----- */
-.cm-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 18px; border-radius:6px; font-size:14px; font-weight:700; cursor:pointer;
+/* ----- buttons ----- */
+.cm-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 18px; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer;
   border:1px solid transparent; text-decoration:none; transition:background .2s, color .2s, border-color .2s; }
-.cm-btn.dark{ background:var(--ink); color:#fff; } .cm-btn.dark:hover{ background:var(--teal); }
-.cm-btn.white{ background:#fff; color:var(--ink); } .cm-btn.white:hover{ background:#e8eef0; }
-.cm-btn.line{ background:#fff; color:var(--ink); border-color:#c5d0d5; } .cm-btn.line:hover{ border-color:var(--ink); }
-.cm-btn.sm{ padding:8px 14px; font-size:13px; }
-.cm-textbtn{ padding:4px 0; font-size:14px; font-weight:700; color:#fff; cursor:pointer; background:linear-gradient(currentColor,currentColor) 0 100%/100% 1px no-repeat; transition:background-size .2s; }
-.cm-textbtn:hover{ background-size:0 1px; }
-.cm-link{ display:inline-flex; align-items:center; gap:5px; font-size:14px; font-weight:700; color:var(--teal); text-decoration:none; }
+.cm-btn.dark{ background:var(--green); color:#fff; } .cm-btn.dark:hover{ background:var(--green2); }
+.cm-btn.amber{ background:var(--amber); color:var(--green); } .cm-btn.amber:hover{ background:#f1c366; }
+.cm-btn.line{ background:#fff; color:var(--ink); border-color:#cfd8d2; } .cm-btn.line:hover{ border-color:var(--green); }
+.cm-btn.sm{ padding:8px 14px; }
+.cm-textbtn{ display:inline-flex; align-items:center; gap:6px; padding:4px 0; font-size:16px; font-weight:600; color:#fff; cursor:pointer; }
+.cm-textbtn:hover{ text-decoration:underline; text-underline-offset:4px; }
+.cm-link{ display:inline-flex; align-items:center; gap:5px; font-size:16px; font-weight:600; color:var(--green2); text-decoration:none; cursor:pointer; }
 .cm-link:hover{ text-decoration:underline; text-underline-offset:3px; }
 
 /* ----- place filter ----- */
-.cm-filter{ background:var(--band); border-bottom:1px solid var(--line); padding:16px 0; }
-.cm-filter-top{ display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px 16px; }
-.cm-filter-top span{ font-size:20px; font-weight:500; color:var(--muted); }
-.cm-chips{ display:flex; gap:8px; margin-top:10px; padding-bottom:2px; overflow-x:auto; }
-.cm-chip{ white-space:nowrap; padding:7px 12px; border-radius:6px; font-size:18px; font-weight:500; color:var(--text); background:#fff; border:1px solid #cfd8dc; cursor:pointer;
+.cm-filter{ padding:34px 0 24px; }
+.cm-filter-top{ display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px 20px; }
+.cm-filter h2{ margin:0; font-size:22px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.cm-filter p{ margin:2px 0 0; font-size:16px; color:var(black); }
+.cm-search{ position:relative; width:min(100%,280px); }
+.cm-search svg.s{ position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#7b8d85; pointer-events:none; }
+.cm-search input{ width:100%; padding:9px 32px 9px 36px; font-size:15px; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:8px; }
+.cm-search input:focus{ outline:none; border-color:var(--green2); box-shadow:0 0 0 3px rgba(29,88,68,.12); }
+.cm-search button{ position:absolute; right:6px; top:50%; transform:translateY(-50%); display:grid; place-items:center; width:24px; height:24px; color:#7b8d85; cursor:pointer; }
+.cm-pbar{ display:flex; align-items:center; gap:10px; margin-top:16px; }
+.cm-chips{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; overflow-x:auto; padding:2px 0; }
+.cm-chip{ white-space:nowrap; padding:8px 16px; border-radius:999px; font-size:15px; font-weight:500; color:var(--ink); background:#fff; border:1px solid var(--line); cursor:pointer;
   transition:background .2s, color .2s, border-color .2s; }
-.cm-chip small{ margin-left:4px; font-size:15px; font-weight:400; color:var(--muted); }
-.cm-chip:hover{ border-color:var(--ink); }
-.cm-chip[aria-pressed="true"]{ background:var(--ink); border-color:var(--ink); color:#fff; } .cm-chip[aria-pressed="true"] small{ color:rgba(255,255,255,.7); }
+.cm-chip small{ margin-left:6px; font-size:12px; font-weight:400; color:var(--muted); }
+.cm-chip:hover{ border-color:var(--green); }
+.cm-chip[aria-pressed="true"]{ background:var(--green); border-color:var(--green); color:#fff; } .cm-chip[aria-pressed="true"] small{ color:rgba(255,255,255,.7); }
+.cm-arrows{ display:flex; gap:6px; }
+.cm-arrow{ display:grid; place-items:center; width:30px; height:30px; border-radius:999px; background:#fff; border:1px solid var(--line); color:var(--ink); cursor:pointer; transition:border-color .2s; }
+.cm-arrow:hover{ border-color:var(--green); }
+.cm-nomatch{ font-size:13px; color:var(--muted); padding:7px 4px; white-space:nowrap; }
 
-/* ----- tabs ----- */
-.cm-tabs{ background:#fff; border-bottom:1px solid var(--line); }
-.cm-tabs-in{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; }
-.cm-tablist{ display:flex; gap:22px; overflow-x:auto; }
-.cm-tab{ position:relative; white-space:nowrap; padding:15px 0; font-size:18px; font-weight:500; color:var(--muted); background:transparent; border:0; cursor:pointer; transition:color .2s; }
-.cm-tab small{ margin-left:5px; font-size:12px; font-weight:400; }
-.cm-tab::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--ink); transform:scaleX(0); transition:transform .25s var(--ease); }
-.cm-tab:hover{ color:var(--ink); } .cm-tab[aria-selected="true"]{ color:var(--ink); } .cm-tab[aria-selected="true"]::after{ transform:scaleX(1); }
-.cm-search{ position:relative; width:min(100%,260px); margin:8px 0; }
-.cm-search svg.s{ position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#7b8d95; pointer-events:none; }
-.cm-search input{ width:100%; padding:9px 32px 9px 34px; font-size:14px; color:var(--ink); background:#fff; border:1px solid #cfd8dc; border-radius:6px; }
-.cm-search input:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(15,107,120,.12); }
-.cm-search button{ position:absolute; right:6px; top:50%; transform:translateY(-50%); display:grid; place-items:center; width:24px; height:24px; color:#7b8d95; cursor:pointer; }
+/* ----- 3-column layout ----- */
+.cm-shell{ padding:8px 0 72px; }
+.cm-layout{ display:grid; grid-template-columns:210px minmax(0,1fr) 270px; gap:24px; align-items:start; }
+.cm-side, .cm-rail2{ position:sticky; top:84px; display:flex; flex-direction:column; gap:14px; }
+.cm-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; }
 
-/* ----- panels ----- */
-.cm-panel{ padding:40px 0 72px; }
-.cm-wrap{ max-width:56rem; margin:0 auto; }
-.cm-phead{ display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px 20px; padding-bottom:18px; border-bottom:2px solid var(--ink); }
-.cm-phead h2{ margin:0; font-size:26px; font-weight:700; line-height:1.2; letter-spacing:-.005em; color:var(--ink); }
-.cm-phead p{ margin:6px 0 0; font-size:15px; color:var(--muted); max-width:36rem; }
-.cm-up{ opacity:0; animation:cm-up .5s ease-out both; animation-delay:calc(var(--i) * 50ms); }
-@keyframes cm-up{ from{ opacity:0; transform:translateY(10px) } to{ opacity:1; transform:none } }
-.cm-empty{ padding:44px 0 8px; max-width:34rem; }
-.cm-empty h3{ margin:0; font-size:20px; font-weight:700; color:var(--ink); } .cm-empty p{ margin:8px 0 0; color:var(--muted); }
-.cm-empty .cm-btn{ margin-top:18px; }
+/* left nav */
+.cm-navcard{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 10px; }
+.cm-navlabel{ margin:0 8px 8px; font-size:16px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.cm-nav{ display:flex; flex-direction:column; gap:2px; }
+.cm-navbtn{ display:flex; align-items:center; gap:10px; width:100%; padding:9px 10px; border-radius:8px; font-size:15px; font-weight:500; color:var(--text); text-align:left; cursor:pointer; transition:background .2s, color .2s; }
+.cm-navbtn svg{ flex-shrink:0; color:var(--muted); }
+.cm-navbtn span{ flex:1; }
+.cm-navbtn small{ font-size:11px; color:var(--muted); }
+.cm-navbtn:hover{ background:var(--bg); }
+.cm-navbtn[aria-selected="true"], .cm-navbtn[aria-pressed="true"]{ background:var(--leaf); color:var(--green); font-weight:600; }
+.cm-navbtn[aria-selected="true"] svg, .cm-navbtn[aria-pressed="true"] svg{ color:var(--green2); }
+.cm-sep{ height:1px; margin:8px 6px; background:var(--line); }
+.cm-stat h3{ margin:0; font-size:17px; font-weight:700; line-height:1.25; color:var(--ink); }
+.cm-stat dl{ margin:12px 0 0; display:grid; gap:6px; font-size:15px; color:var(--muted); font-weight:700;}
+.cm-stat dl div{ display:flex; align-items:baseline; gap:6px; } .cm-stat dt{ order:2;  } .cm-stat dd{ order:1; margin:0; font-size:18px; font-weight:700; color:var(--ink); }
+.cm-stat .cm-link{ margin-top:14px; font-size:14px; }
 
-/* ----- review entries ----- */
-.cm-entry{ display:grid; grid-template-columns:190px 1fr; gap:8px 36px; padding:28px 0; border-bottom:1px solid var(--line); }
-.cm-rail{ font-size:15px; color:var(--muted); line-height:1.5; }
-.cm-rail .who{ display:flex; align-items:center; gap:10px; }
-.cm-avatar{ position:relative; display:grid; place-items:center; width:34px; height:34px; flex-shrink:0; border-radius:50%; overflow:hidden; background:#dde6ea; color:var(--ink); font-size:14px; font-weight:700; }
+/* banner */
+.cm-banner{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 20px; padding:16px 20px; background:var(#898b88); border:1px solid #898b88; border-radius:12px; }
+.cm-banner b{ display:block; font-size:15px; color:var(white); } .cm-banner span{ font-size:16px; color:var(--muted); }
+
+/* panel head */
+.cm-panel{ margin-top:22px; }
+.cm-phead{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; }
+.cm-phead h2{ margin:0; font-size:19px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.cm-phead p{ margin:2px 0 0; font-size:15px; color:var(black); font-weight:500; }
+.cm-tools{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.cm-tools .cm-search{ width:210px; }
+.cm-select{ padding:8px 10px; font-size:12px; font-weight:500; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:8px; cursor:pointer; }
+.cm-list{ display:flex; flex-direction:column; gap:16px; margin-top:16px; }
+.cm-up{ opacity:0; animation:cm-fadein .5s ease-out both; animation-delay:calc(var(--i) * 50ms); }
+.cm-empty{ padding:36px 24px; margin-top:16px; text-align:center; background:#fff; border:1px dashed #c9d4cc; border-radius:12px; }
+.cm-empty h3{ margin:0; font-size:18px; font-weight:700; color:var(--ink); } .cm-empty p{ margin:6px auto 0; max-width:30rem; color:var(--muted); }
+.cm-empty .cm-btn{ margin-top:16px; }
+
+/* review card */
+.cm-post{ padding:20px; background:#fff; border:1px solid var(--line); border-radius:12px; }
+.cm-post-top{ display:flex; align-items:center; gap:10px; }
+.cm-avatar{ position:relative; display:grid; place-items:center; width:34px; height:34px; flex-shrink:0; border-radius:50%; overflow:hidden; background:var(--leaf); color:var(--green); font-size:13px; font-weight:700; }
 .cm-avatar.lg{ width:46px; height:46px; font-size:17px; }
-.cm-rail .nm{ display:block; font-size:14px; font-weight:700; color:var(--ink); }
-.cm-stars{ display:flex; gap:1px; margin-top:12px; color:var(--amber); }
-.cm-where{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); }
-.cm-where b{ color:var(--ink); font-size:15px; }
-.cm-thumb{ position:relative; width:32px; height:32px; flex-shrink:0; border-radius:4px; overflow:hidden; background:var(--band); }
-.cm-title{ margin:8px 0 0; font-size:20px; font-weight:700; line-height:1.3; color:var(--ink); }
-.cm-body{ margin:8px 0 0; line-height:1.75; color:#34484f; font-size:18px;}
-.cm-note{ margin:14px 0 0; padding:2px 0 2px 14px; border-left:3px solid var(--amber); font-size:16px; color:#34484f; } .cm-note b{ color:var(--ink); }
-.cm-acts{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 20px; margin-top:16px; font-size:13px; }
-.cm-act{ display:inline-flex; align-items:center; gap:6px; font-size:15px; font-weight:700; color:var(--muted); cursor:pointer; transition:color .2s; }
-.cm-act:hover{ color:var(--ink); } .cm-act.rm:hover{ color:#b3261e; }
-.cm-act[aria-pressed="true"]{ color:#b3261e; } .cm-act[aria-pressed="true"] svg{ fill:#b3261e; }
-.cm-replies{ margin-top:16px; padding-left:16px; border-left:2px solid var(--line); }
-.cm-reply{ display:flex; justify-content:space-between; gap:10px; margin-bottom:12px; font-size:14px; }
-.cm-reply p{ margin:2px 0 0; color:#34484f; } .cm-reply .nm{ font-weight:700; color:var(--ink); } .cm-reply small{ margin-left:8px; font-size:12px; color:var(--muted); }
+.cm-who{ flex:1; min-width:0; line-height:1.3; } .cm-who b{ display:block; font-size:13px; color:var(--ink); } .cm-who small{ font-size:11px; color:var(--muted); }
+.cm-tagrow{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; }
+.cm-tag{ display:inline-block; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--green2); background:var(--leaf); }
+.cm-tag.q{ color:#8a5a0c; background:#fbefd4; }
+.cm-stars{ display:flex; gap:1px; color:var(--amber); }
+.cm-title{ margin:10px 0 0; font-size:19px; font-weight:700; line-height:1.3; letter-spacing:-.01em; color:var(--ink); }
+.cm-where{ display:flex; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:var(--green2); font-weight:500; }
+.cm-photo{ position:relative; width:100%; aspect-ratio:16/9; margin-top:14px; border-radius:10px; overflow:hidden; background:var(--leaf); }
+.cm-body{ margin:14px 0 0; line-height:1.7; color:var(--text); font-size:14px; }
+.cm-note{ margin:12px 0 0; padding:8px 12px; border-left:3px solid var(--amber); background:var(--cream); border-radius:0 8px 8px 0; font-size:13px; } .cm-note b{ color:var(--ink); }
+.cm-acts{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 20px; margin-top:16px; padding-top:12px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+.cm-act{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; transition:color .2s; }
+.cm-act:hover{ color:var(--ink); } .cm-act.rm:hover{ color:var(--red); }
+.cm-act[aria-pressed="true"]{ color:var(--red); } .cm-act[aria-pressed="true"] svg{ fill:var(--red); }
+.cm-replies{ margin-top:14px; padding:12px 14px; background:var(--bg); border-radius:10px; }
+.cm-reply{ display:flex; justify-content:space-between; gap:10px; margin-bottom:12px; font-size:13px; }
+.cm-reply p{ margin:2px 0 0; color:var(--text); } .cm-reply .nm{ font-weight:700; color:var(--ink); } .cm-reply small{ margin-left:8px; font-size:11px; color:var(--muted); }
 .cm-inline{ display:flex; gap:8px; }
-.cm-inline input{ flex:1; min-width:0; padding:9px 12px; font-size:14px; color:var(--ink); background:#fff; border:1px solid #cfd8dc; border-radius:6px; }
-.cm-inline input:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(15,107,120,.12); }
+.cm-inline input{ flex:1; min-width:0; padding:9px 12px; font-size:13px; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:8px; }
+.cm-inline input:focus{ outline:none; border-color:var(--green2); box-shadow:0 0 0 3px rgba(29,88,68,.12); }
+.cm-meta{ font-size:12px; color:var(--muted); }
 
-/* ----- discussions ----- */
-.cm-row{ padding:22px 0; border-bottom:1px solid var(--line); }
-.cm-row-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
-.cm-row h3{ margin:4px 0 0; font-size:19px; font-weight:700; line-height:1.3; color:var(--ink); }
-.cm-meta{ font-size:13px; color:var(--muted); }
-.cm-toggle{ display:inline-flex; align-items:center; gap:6px; flex-shrink:0; font-size:13px; font-weight:700; color:var(--teal); cursor:pointer; }
+/* discussions */
+.cm-qhead{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.cm-qhead h3{ margin:8px 0 0; font-size:17px; font-weight:700; line-height:1.3; color:var(--ink); }
+.cm-toggle{ display:inline-flex; align-items:center; gap:6px; flex-shrink:0; font-size:12px; font-weight:600; color:var(--green2); cursor:pointer; }
 .cm-toggle:hover{ text-decoration:underline; text-underline-offset:3px; } .cm-toggle svg{ transition:transform .3s var(--ease); } .cm-toggle[aria-expanded="true"] svg{ transform:rotate(180deg); }
 
-/* ----- tips ----- */
-.cm-tip{ padding:22px 0 22px 18px; border-bottom:1px solid var(--line); border-left:4px solid var(--c); }
-.cm-sev{ font-size:13px; font-weight:700; color:var(--c); }
-.cm-tip h3{ margin:4px 0 0; font-size:19px; font-weight:700; line-height:1.3; color:var(--ink); }
-.cm-tip p{ margin:8px 0 0; line-height:1.7; color:#34484f; }
+/* tips */
+.cm-tip{ padding:18px 20px; background:#fff; border:1px solid var(--line); border-left:4px solid var(--c); border-radius:12px; }
+.cm-sev{ font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--c); }
+.cm-tip h3{ margin:4px 0 0; font-size:17px; font-weight:700; line-height:1.3; color:var(--ink); }
+.cm-tip p{ margin:8px 0 0; line-height:1.65; color:var(--text); }
 
-/* ----- profiles ----- */
-.cm-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:28px; }
-.cm-profile{ display:flex; flex-direction:column; gap:10px; height:100%; padding:18px; border:1px solid var(--line); border-radius:8px; background:#fff; transition:border-color .2s; }
-.cm-profile:hover{ border-color:#9db0b8; } .cm-profile.me{ border-color:var(--ink); }
-.cm-profile .nm{ font-size:16px; font-weight:700; color:var(--ink); } .cm-profile p{ margin:0; font-size:14px; color:#34484f; }
+/* profiles */
+.cm-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:16px; }
+.cm-profile{ display:flex; flex-direction:column; gap:10px; height:100%; padding:16px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.cm-profile.me{ border-color:var(--green2); }
+.cm-profile .nm{ font-size:14px; font-weight:700; color:var(--ink); } .cm-profile p{ margin:0; font-size:13px; color:var(--text); }
 
-/* ----- ethics ----- */
-.cm-ethic{ display:grid; grid-template-columns:64px 1fr; gap:8px 20px; padding:26px 0; border-bottom:1px solid var(--line); }
-.cm-ethic .n{ font-size:40px; font-weight:700; line-height:1; color:#c3d0d6; }
-.cm-ethic h3{ margin:0; font-size:19px; font-weight:700; color:var(--ink); } .cm-ethic p{ margin:6px 0 0; max-width:38rem; line-height:1.7; color:#34484f; }
+/* ethics */
+.cm-ethic{ display:flex; gap:14px; padding:18px 20px; background:#fff; border:1px solid var(--line); border-radius:12px; }
+.cm-ethic .ic{ display:grid; place-items:center; width:30px; height:30px; flex-shrink:0; border-radius:50%; background:var(--leaf); color:var(--green2); }
+.cm-ethic h3{ margin:0; font-size:15px; font-weight:700; color:var(--ink); } .cm-ethic p{ margin:4px 0 0; line-height:1.65; color:var(--text); }
+
+/* right rail cards */
+.cm-wisdom{ background:var(--cream); border-color:#f0e2bd; }
+.cm-green{ background:var(--leaf); border-color:#d5e3d0; }
+.cm-rc h4{ margin:0; font-size:18px; font-weight:700; line-height:1.3; color:var(--ink); }
+.cm-rc p{ margin:6px 0 0; font-size:16px; line-height:1.6; color:var(--text); font-weight:500; }
+.cm-rc .cm-link{ margin-top:12px; font-size:15px; }
+.cm-rc .k{ margin:0 0 6px; font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.cm-rc .ph{ position:relative; width:100%; aspect-ratio:16/10; margin-bottom:12px; border-radius:8px; overflow:hidden; background:var(--leaf); }
+.cm-rc ul{ margin:10px 0 0; padding:0; list-style:none; display:grid; gap:6px; font-size:16px; }
+.cm-rc li{ display:flex; align-items:center; gap:8px; } .cm-rc li svg{ color:var(--green2); flex-shrink:0; }
 
 /* ----- modal ----- */
-.cm-overlay{ position:fixed; inset:0; z-index:80; display:flex; align-items:flex-start; justify-content:center; padding:16px; overflow-y:auto; background:rgba(10,32,40,.62); animation:cm-fadein .2s ease-out both; }
-.cm-modal{ position:relative; width:100%; max-width:34rem; margin:40px 0; padding:28px; background:#fff; border-radius:10px; box-shadow:0 24px 60px rgba(0,0,0,.35); animation:cm-pop .3s var(--ease) both; }
+.cm-overlay{ position:fixed; inset:0; z-index:80; display:flex; align-items:flex-start; justify-content:center; padding:16px; overflow-y:auto; background:rgba(8,28,21,.62); animation:cm-fadein .2s ease-out both; }
+.cm-modal{ position:relative; width:100%; max-width:34rem; margin:40px 0; padding:28px; background:#fff; border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,.35); animation:cm-pop .3s var(--ease) both; }
 @keyframes cm-pop{ from{ opacity:0; transform:translateY(14px) } to{ opacity:1; transform:none } }
-.cm-close{ position:absolute; top:16px; right:16px; display:grid; place-items:center; width:34px; height:34px; border-radius:6px; color:var(--muted); cursor:pointer; transition:background .2s, color .2s; }
-.cm-close:hover{ background:var(--band); color:var(--ink); }
-.cm-modal h3{ margin:0; padding-right:40px; font-size:21px; font-weight:700; line-height:1.25; color:var(--ink); }
+.cm-close{ position:absolute; top:16px; right:16px; display:grid; place-items:center; width:34px; height:34px; border-radius:8px; color:var(--muted); cursor:pointer; transition:background .2s, color .2s; }
+.cm-close:hover{ background:var(--bg); color:var(--ink); }
+.cm-modal h3{ margin:0; padding-right:40px; font-size:20px; font-weight:700; line-height:1.25; color:var(--ink); }
 .cm-mtabs{ display:flex; gap:20px; margin-top:18px; border-bottom:1px solid var(--line); }
-.cm-mtabs button{ position:relative; padding:10px 0; font-size:14px; font-weight:700; color:var(--muted); cursor:pointer; }
-.cm-mtabs button[aria-pressed="true"]{ color:var(--ink); } .cm-mtabs button[aria-pressed="true"]::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--ink); }
+.cm-mtabs button{ position:relative; padding:10px 0; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
+.cm-mtabs button[aria-pressed="true"]{ color:var(--green); } .cm-mtabs button[aria-pressed="true"]::after{ content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--green); }
 .cm-form{ display:flex; flex-direction:column; gap:16px; margin-top:20px; }
-.cm-label{ display:block; font-size:14px; font-weight:700; color:var(--ink); }
-.cm-field{ display:block; width:100%; margin-top:6px; padding:10px 12px; font-size:15px; line-height:1.5; color:var(--ink); background:#fff; border:1px solid #c5d0d5; border-radius:6px; transition:border-color .2s, box-shadow .2s; }
-.cm-field:focus{ outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(15,107,120,.14); }
+.cm-label{ display:block; font-size:13px; font-weight:600; color:var(--ink); }
+.cm-field{ display:block; width:100%; margin-top:6px; padding:10px 12px; font-size:14px; line-height:1.5; color:var(--ink); background:#fff; border:1px solid #cfd8d2; border-radius:8px; transition:border-color .2s, box-shadow .2s; }
+.cm-field:focus{ outline:none; border-color:var(--green2); box-shadow:0 0 0 3px rgba(29,88,68,.14); }
 .cm-two{ display:grid; gap:14px; grid-template-columns:1fr 1fr; }
 .cm-rate{ display:flex; gap:4px; margin-top:6px; }
-.cm-rate button{ display:grid; place-items:center; width:36px; height:36px; color:#aab9c0; cursor:pointer; border-radius:6px; transition:color .15s, background .15s; }
-.cm-rate button:hover{ background:var(--band); } .cm-rate button.on{ color:var(--amber); } .cm-rate button.on svg{ fill:var(--amber); }
+.cm-rate button{ display:grid; place-items:center; width:36px; height:36px; color:#b3c0b8; cursor:pointer; border-radius:8px; transition:color .15s, background .15s; }
+.cm-rate button:hover{ background:var(--bg); } .cm-rate button.on{ color:var(--amber); } .cm-rate button.on svg{ fill:var(--amber); }
 .cm-sevpick{ display:flex; gap:8px; margin-top:6px; }
-.cm-sevpick button{ flex:1; padding:9px 0; border-radius:6px; font-size:14px; font-weight:700; color:var(--muted); background:#fff; border:1px solid #c5d0d5; cursor:pointer; transition:background .2s, color .2s, border-color .2s; }
-.cm-sevpick button:hover{ border-color:var(--ink); } .cm-sevpick button[aria-pressed="true"]{ background:var(--ink); border-color:var(--ink); color:#fff; }
+.cm-sevpick button{ flex:1; padding:9px 0; border-radius:8px; font-size:13px; font-weight:600; color:var(--muted); background:#fff; border:1px solid #cfd8d2; cursor:pointer; transition:background .2s, color .2s, border-color .2s; }
+.cm-sevpick button:hover{ border-color:var(--green); } .cm-sevpick button[aria-pressed="true"]{ background:var(--green); border-color:var(--green); color:#fff; }
 .cm-modal-foot{ display:flex; justify-content:flex-end; gap:10px; padding-top:16px; border-top:1px solid var(--line); }
 
-@media (max-width:900px){ .cm-grid{ grid-template-columns:repeat(2,1fr); } }
-@media (max-width:720px){
-  .cm-entry{ grid-template-columns:1fr; gap:10px; padding:22px 0; }
-  .cm-rail{ display:flex; flex-wrap:wrap; align-items:center; gap:4px 14px; } .cm-stars{ margin-top:0; }
-  .cm-hero{ padding:64px 0 24px; }
+@media (max-width:1100px){
+  .cm-layout{ grid-template-columns:210px minmax(0,1fr); }
+  .cm-rail2{ position:static; grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:820px){
+  .cm-layout{ grid-template-columns:1fr; }
+  .cm-side{ position:static; }
+  .cm-nav{ flex-direction:row; overflow-x:auto; } .cm-navbtn{ width:auto; white-space:nowrap; }
+  .cm-stat{ display:none; }
+  .cm-chip-loc{ display:none; }
+  .cm-hero{ padding:52px 0 40px; }
 }
 @media (max-width:560px){
-  .cm-grid,.cm-two{ grid-template-columns:1fr; } .cm-modal{ padding:22px 18px; margin:16px 0; }
-  .cm-ethic{ grid-template-columns:44px 1fr; } .cm-ethic .n{ font-size:30px; } .cm-search{ width:100%; }
+  .cm-grid,.cm-two,.cm-rail2{ grid-template-columns:1fr; } .cm-modal{ padding:22px 18px; margin:16px 0; }
+  .cm-tools .cm-search{ width:100%; } .cm-search{ width:100%; }
 }
 @media (prefers-reduced-motion:reduce){
   .cm-line,.cm-fade,.cm-up{ opacity:1 !important; transform:none !important; transition:none !important; animation:none !important; }
 }
 
-/* ----- place filter: search + scroll arrows (added) ----- */
-.cm-pbar{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 12px; margin-top:10px; }
-.cm-pbar .cm-search{ margin:0; }
-.cm-arrows{ display:flex; gap:6px; }
-.cm-arrow{ display:grid; place-items:center; width:32px; height:32px; border-radius:6px; background:#fff; border:1px solid #cfd8dc; color:var(--ink); cursor:pointer; transition:border-color .2s; }
-.cm-arrow:hover{ border-color:var(--ink); }
-.cm-nomatch{ font-size:14px; color:var(--muted); padding:7px 4px; white-space:nowrap; }
+/* ----- NEW: hero image slider (added only; nothing above was changed) ----- */
+.cm-slides{ position:absolute; inset:0; z-index:-3; overflow:hidden; }
+.cm-slide{ position:absolute; inset:0; transform:translateX(100%); }
+.cm-slide.on{ transform:none; transition:transform 1s var(--ease); }
+.cm-slide.prev{ transform:translateX(-100%); transition:transform 1s var(--ease); }
+.cm-slide img{ width:100% !important; height:100% !important; object-fit:cover !important; object-position:center 40%; }
+.cm-chip-loc.cm-slidechip{ gap:10px; }
+.cm-slidename{ color:#fff; text-decoration:none; font-weight:600; animation:cm-namein .6s var(--ease) both; }
+.cm-slidename:hover{ text-decoration:underline; text-underline-offset:3px; }
+@keyframes cm-namein{ from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:none } }
+.cm-dots{ display:inline-flex; gap:5px; margin-left:4px; }
+.cm-dots button{ width:7px; height:7px; border-radius:999px; background:rgba(255,255,255,.4); cursor:pointer; transition:width .3s, background .3s; }
+.cm-dots button[aria-pressed="true"]{ width:20px; background:var(--amber); }
+.cm-hbtn{ display:grid; place-items:center; width:22px; height:22px; border-radius:999px; color:#fff; background:rgba(255,255,255,.14); cursor:pointer; }
+.cm-hbtn:hover{ background:rgba(215, 205, 205, 0.28); }
+@media (prefers-reduced-motion:reduce){
+  .cm-slide,.cm-slide.on,.cm-slide.prev,.cm-slidename{ transition:none !important; animation:none !important; }
+}
+
+/* ----- cards stand out on white page ----- */
+.cm-shell{ background:light gray; padding-top:28px; border-top:1px solid var(--line); }
+
+.cm-shell .cm-card,
+.cm-shell .cm-navcard,
+.cm-shell .cm-post,
+.cm-shell .cm-tip,
+.cm-shell .cm-profile,
+.cm-shell .cm-ethic,
+.cm-shell .cm-empty{
+  border-color:#d9e2d6;
+  box-shadow:0 1px 2px rgba(18,61,48,.06), 0 6px 18px rgba(18,61,48,.07);
+}
+
+/* things that used var(--bg) and are now invisible on white */
+.cm-replies{ background:#f4f7f2; }
+.cm-navbtn:hover{ background:#eef3ec; }
+.cm-close:hover{ background:#eef3ec; }
+.cm-rate button:hover{ background:#eef3ec; }
 `;
 
 function Line({ i, children }: { i: number; children: ReactNode }) {
@@ -326,7 +390,7 @@ function Line({ i, children }: { i: number; children: ReactNode }) {
   );
 }
 
-function StarRow({ rating, size = 15 }: { rating: number; size?: number }) {
+function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
     <div className="cm-stars" role="img" aria-label={`Rated ${rating} out of 5`}>
       {Array.from({ length: 5 }).map((_, i) => (
@@ -336,28 +400,14 @@ function StarRow({ rating, size = 15 }: { rating: number; size?: number }) {
   );
 }
 
-function PanelHead({
-  title,
-  text,
-  actionLabel,
-  onAction,
-}: {
-  title: string;
-  text?: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
+function PanelHead({ title, text, right }: { title: string; text?: string; right?: ReactNode }) {
   return (
     <div className="cm-phead">
       <div>
         <h2>{title}</h2>
         {text && <p>{text}</p>}
       </div>
-      {actionLabel && onAction && (
-        <button type="button" onClick={onAction} className="cm-btn dark sm">
-          {actionLabel}
-        </button>
-      )}
+      {right}
     </div>
   );
 }
@@ -387,7 +437,6 @@ function Empty({
 export default function CommunityPage() {
   const [supabase] = useState(() => createClient());
 
-  // Current session user
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     email?: string;
@@ -395,36 +444,37 @@ export default function CommunityPage() {
     handle?: string;
   } | null>(null);
 
-  // Tab & filters
   const [activeTab, setActiveTab] = useState<TabType>("reviews");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlaceFilter, setSelectedPlaceFilter] = useState("all");
 
-  // Place chips: search text + scroll container ref (added)
   const [placeSearch, setPlaceSearch] = useState("");
   const chipsRef = useRef<HTMLDivElement>(null);
 
-  // Real Database Records (from Supabase)
   const [places, setPlaces] = useState<RealPlace[]>([]);
   const [profiles, setProfiles] = useState<RealProfile[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // Zero-demo-data initial states: completely empty until real data is added
   const [reviews, setReviews] = useState<CommunityReview[]>([]);
   const [discussions, setDiscussions] = useState<CommunityDiscussion[]>([]);
   const [tips, setTips] = useState<CommunityTip[]>([]);
 
-  // User interactions state (persisted)
   const [likedItems, setLikedItems] = useState<Record<string, boolean>>({});
 
-  // Modals & UI states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"review" | "discussion" | "tip">("review");
   const [expandedDiscussionId, setExpandedDiscussionId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [heroIn, setHeroIn] = useState(false); // UI only: triggers the hero entrance
+  const [heroIn, setHeroIn] = useState(false);
 
-  // Form states for creating contributions
+  // NEW: hero slider state (current + previous slide index, hover pause)
+  const [hero, setHero] = useState({ cur: 0, prev: -1 });
+  const [heroPaused, setHeroPaused] = useState(false);
+
+  // UI only: feed sort and "liked posts" view
+  const [sortOrder, setSortOrder] = useState<"recent" | "liked">("recent");
+  const [showLikedOnly, setShowLikedOnly] = useState(false);
+
   const [formPlaceId, setFormPlaceId] = useState("");
   const [formTitle, setFormTitle] = useState("");
   const [formRating, setFormRating] = useState(5);
@@ -436,7 +486,6 @@ export default function CommunityPage() {
   const [formDistrict, setFormDistrict] = useState("");
   const [formCategory, setFormCategory] = useState("Nature");
 
-  // Inline comment & reply states
   const [replyInputText, setReplyInputText] = useState<Record<string, string>>({});
   const [commentInputText, setCommentInputText] = useState<Record<string, string>>({});
 
@@ -445,13 +494,11 @@ export default function CommunityPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // UI only: start the hero entrance after first paint
   useEffect(() => {
     const id = requestAnimationFrame(() => setHeroIn(true));
     return () => cancelAnimationFrame(id);
   }, []);
 
-  // UI only: while the modal is open, lock page scroll and let Escape close it
   useEffect(() => {
     if (!isModalOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -611,8 +658,6 @@ export default function CommunityPage() {
                 !r.title.includes("Tangalle") &&
                 !r.title.includes("Golumale")
             );
-            // A review saved to Supabase is also kept in the browser, so skip a local copy
-            // when the same text for the same place is already loaded (matched by id or content)
             const reviewKey = (r: CommunityReview) => `${r.place_id}|${(r.body || "").trim().toLowerCase()}`;
             const existingIds = new Set(loadedReviews.map((r) => r.id));
             const existingKeys = new Set(loadedReviews.map(reviewKey));
@@ -629,14 +674,14 @@ export default function CommunityPage() {
         }
         if (isMounted) setReviews(loadedReviews);
 
-        // 6. Load user-added discussions (purging any legacy mock items)
+        // 6. Load user-added discussions
         const savedDiscussions = localStorage.getItem(STORAGE_DISCUSSIONS_KEY);
         if (savedDiscussions && isMounted) {
           try {
             const parsed: CommunityDiscussion[] = JSON.parse(savedDiscussions);
             const nonDemoOnly = parsed.filter(
               (d) =>
-                !/^disc-\d{1,3}$/.test(d.id) && // only old demo ids (disc-1, disc-2); new ones are disc-<timestamp>
+                !/^disc-\d{1,3}$/.test(d.id) &&
                 !d.title.includes("Illukkumbura") &&
                 !d.title.includes("Pitawala") &&
                 !d.title.includes("Dikwella")
@@ -647,14 +692,14 @@ export default function CommunityPage() {
           }
         }
 
-        // 7. Load user-added tips (purging any legacy mock items)
+        // 7. Load user-added tips
         const savedTips = localStorage.getItem(STORAGE_TIPS_KEY);
         if (savedTips && isMounted) {
           try {
             const parsed: CommunityTip[] = JSON.parse(savedTips);
             const nonDemoOnly = parsed.filter(
               (t) =>
-                !/^tip-\d{1,3}$/.test(t.id) && // only old demo ids (tip-1, tip-2); new ones are tip-<timestamp>
+                !/^tip-\d{1,3}$/.test(t.id) &&
                 !t.title.includes("Leech Protection") &&
                 !t.title.includes("Train Booking") &&
                 !t.title.includes("Temple Etiquette") &&
@@ -689,7 +734,6 @@ export default function CommunityPage() {
     };
   }, [supabase]);
 
-  // Derive districts from real places
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
     places.forEach((p) => {
@@ -698,7 +742,6 @@ export default function CommunityPage() {
     return Array.from(set).sort();
   }, [places]);
 
-  // Chips filtered by the place search (the selected place always stays visible) (added)
   const chipPlaces = useMemo(() => {
     const q = placeSearch.trim().toLowerCase();
     if (!q) return places;
@@ -711,12 +754,38 @@ export default function CommunityPage() {
     );
   }, [places, placeSearch, selectedPlaceFilter]);
 
-  // Scroll the chips row left or right (added)
   const scrollChips = (dir: 1 | -1) =>
     chipsRef.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
 
   /* ========================================================================
-     FUNCTION: CREATE REVIEW / FIELD NOTE FOR REAL PLACE  (unchanged)
+     NEW: HERO SLIDER LOGIC
+     Uses uploaded places that have a hero image (max 6). Auto-advances every
+     5s, pauses while the pointer is over the hero.
+     ======================================================================== */
+  const heroSlides = useMemo(
+    () => places.filter((p) => p.hero_image_url).slice(0, 6),
+    [places]
+  );
+
+  // Clamp in case the slide list shrinks while an index is active
+  const heroIdx = heroSlides.length ? Math.min(hero.cur, heroSlides.length - 1) : 0;
+
+  const goHero = (n: number) =>
+    setHero((h) => (n === h.cur ? h : { cur: n, prev: h.cur }));
+
+  const stepHero = (dir: 1 | -1) =>
+    goHero((heroIdx + dir + heroSlides.length) % heroSlides.length);
+
+  useEffect(() => {
+    if (heroSlides.length < 2 || heroPaused) return;
+    const t = setInterval(() => {
+      setHero((h) => ({ cur: (h.cur + 1) % heroSlides.length, prev: h.cur }));
+    }, 5000);
+    return () => clearInterval(t);
+  }, [heroSlides.length, heroPaused]);
+
+  /* ========================================================================
+     HANDLERS  (all unchanged)
      ======================================================================== */
   const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -763,7 +832,6 @@ export default function CommunityPage() {
       comments: [],
     };
 
-    // Try saving to Supabase reviews table if user is logged in
     if (currentUser?.id) {
       try {
         await supabase.from("reviews").insert({
@@ -781,7 +849,6 @@ export default function CommunityPage() {
     setReviews(updated);
     localStorage.setItem(STORAGE_REVIEWS_KEY, JSON.stringify(updated));
 
-    // Reset fields
     setFormTitle("");
     setFormBody("");
     setFormKeyTip("");
@@ -789,9 +856,6 @@ export default function CommunityPage() {
     showToast(`Review for ${placeName} published!`);
   };
 
-  /* ========================================================================
-     FUNCTION: REMOVE REVIEW  (unchanged)
-     ======================================================================== */
   const handleRemoveReview = (reviewId: string) => {
     if (!confirm("Are you sure you want to remove this review?")) return;
     const updated = reviews.filter((r) => r.id !== reviewId);
@@ -800,9 +864,6 @@ export default function CommunityPage() {
     showToast("Review removed.");
   };
 
-  /* ========================================================================
-     FUNCTION: ADD COMMENT TO A REVIEW  (unchanged)
-     ======================================================================== */
   const handleAddComment = (reviewId: string, e: React.FormEvent) => {
     e.preventDefault();
     const text = commentInputText[reviewId]?.trim();
@@ -837,9 +898,6 @@ export default function CommunityPage() {
     showToast("Comment added!");
   };
 
-  /* ========================================================================
-     FUNCTION: REMOVE COMMENT  (unchanged)
-     ======================================================================== */
   const handleRemoveComment = (reviewId: string, commentId: string) => {
     const updated = reviews.map((r) => {
       if (r.id === reviewId) {
@@ -855,9 +913,6 @@ export default function CommunityPage() {
     showToast("Comment removed.");
   };
 
-  /* ========================================================================
-     FUNCTION: TOGGLE / REMOVE LIKE ON REVIEW  (unchanged)
-     ======================================================================== */
   const handleToggleLike = (id: string) => {
     const isLiked = !!likedItems[id];
     const newLiked = { ...likedItems, [id]: !isLiked };
@@ -872,9 +927,6 @@ export default function CommunityPage() {
     showToast(isLiked ? "Removed like" : "Liked");
   };
 
-  /* ========================================================================
-     FUNCTION: CREATE DISCUSSION / TRAIL QUERY FOR REAL PLACE  (unchanged)
-     ======================================================================== */
   const handleAddDiscussion = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) return;
@@ -910,9 +962,6 @@ export default function CommunityPage() {
     showToast("Discussion question posted!");
   };
 
-  /* ========================================================================
-     FUNCTION: REMOVE DISCUSSION  (unchanged)
-     ======================================================================== */
   const handleRemoveDiscussion = (discId: string) => {
     if (!confirm("Are you sure you want to remove this discussion?")) return;
     const updated = discussions.filter((d) => d.id !== discId);
@@ -921,9 +970,6 @@ export default function CommunityPage() {
     showToast("Discussion removed.");
   };
 
-  /* ========================================================================
-     FUNCTION: ADD REPLY TO DISCUSSION  (unchanged)
-     ======================================================================== */
   const handleAddReply = (discId: string, e: React.FormEvent) => {
     e.preventDefault();
     const text = replyInputText[discId]?.trim();
@@ -958,9 +1004,6 @@ export default function CommunityPage() {
     showToast("Reply submitted!");
   };
 
-  /* ========================================================================
-     FUNCTION: CREATE TRAIL TIP  (unchanged)
-     ======================================================================== */
   const handleAddTip = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim() || !formBody.trim()) return;
@@ -997,9 +1040,6 @@ export default function CommunityPage() {
     showToast("Trail tip shared!");
   };
 
-  /* ========================================================================
-     FUNCTION: REMOVE TRAIL TIP  (unchanged)
-     ======================================================================== */
   const handleRemoveTip = (tipId: string) => {
     if (!confirm("Remove this trail tip?")) return;
     const updated = tips.filter((t) => t.id !== tipId);
@@ -1044,6 +1084,14 @@ export default function CommunityPage() {
     });
   }, [tips, selectedPlaceFilter, searchQuery]);
 
+  // UI only: sort + liked-only view on top of the filtered reviews
+  const visibleReviews = useMemo(() => {
+    let list = showLikedOnly ? filteredReviews.filter((r) => likedItems[r.id]) : filteredReviews;
+    if (sortOrder === "liked") list = [...list].sort((a, b) => b.likes - a.likes);
+    else list = [...list].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+    return list;
+  }, [filteredReviews, showLikedOnly, likedItems, sortOrder]);
+
   /* ========================================================================
      UI HELPERS (presentation only)
      ======================================================================== */
@@ -1052,14 +1100,19 @@ export default function CommunityPage() {
     setIsModalOpen(true);
   };
 
+  const goTab = (id: TabType) => {
+    setActiveTab(id);
+    setShowLikedOnly(false);
+  };
+
   const profileCount = profiles.length > 0 ? profiles.length : currentUser ? 1 : 0;
 
-  const tabs: { id: TabType; label: string; count?: number }[] = [
-    { id: "reviews", label: "Reviews & field notes", count: filteredReviews.length },
-    { id: "discussions", label: "Questions & answers", count: filteredDiscussions.length },
-    { id: "tips", label: "Trail tips & alerts", count: filteredTips.length },
-    { id: "contributors", label: "Community profiles", count: profiles.length },
-    { id: "ethics", label: "Traveler ethics" },
+  const navItems: { id: TabType; label: string; count?: number; icon: ReactNode }[] = [
+    { id: "reviews", label: "Reviews & field notes", count: filteredReviews.length, icon: <MessageSquare size={16} /> },
+    { id: "discussions", label: "Questions & answers", count: filteredDiscussions.length, icon: <HelpCircle size={16} /> },
+    { id: "tips", label: "Trail tips & alerts", count: filteredTips.length, icon: <AlertTriangle size={16} /> },
+    { id: "contributors", label: "Community profiles", count: profiles.length, icon: <Users size={16} /> },
+    { id: "ethics", label: "Traveler ethics", icon: <Leaf size={16} /> },
   ];
 
   const SEVERITY_META = {
@@ -1087,78 +1140,142 @@ export default function CommunityPage() {
     },
   ];
 
+  const latestTip = tips[0];
+  const featuredPlace = places.find((p) => p.hero_image_url) || null;
+
+  const searchBox = (
+    <div className="cm-search">
+      <Search size={15} className="s" aria-hidden />
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Search reviews or tips"
+        aria-label="Search reviews, discussions and tips"
+      />
+      {searchQuery && (
+        <button type="button" onClick={() => setSearchQuery("")} aria-label="Clear search">
+          <X size={14} />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className={`cm-root min-h-screen ${heroIn ? "cm-in" : ""}`}>
       <style>{STYLES}</style>
 
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="cm-toast" role="status">
           {toastMessage}
         </div>
       )}
 
-      {/* ====================================================================
-          HERO
-          ==================================================================== */}
-      <section className="cm-hero">
+      {/* HERO */}
+      <section
+        className="cm-hero"
+        onMouseEnter={() => setHeroPaused(true)}
+        onMouseLeave={() => setHeroPaused(false)}
+      >
         <div className="cm-hero-bg" aria-hidden />
+
+        {/* NEW: sliding place images (sits above the /footer.jpg fallback) */}
+        <div className="cm-slides" aria-hidden>
+          {heroSlides.map((p, i) => (
+            <div
+              key={p.id}
+              className={`cm-slide ${i === heroIdx ? "on" : i === hero.prev ? "prev" : ""}`}
+            >
+              <Image
+                src={p.hero_image_url as string}
+                alt=""
+                fill
+                unoptimized
+                priority={i === 0}
+                sizes="100vw"
+                style={{ objectFit: "cover" }}
+              />
+            </div>
+          ))}
+        </div>
+
         <div className="cm-hero-shade" aria-hidden />
-        <div className="cm-hero-glow" aria-hidden />
-        <div className="cm-hero-topo" aria-hidden />
-        <div className="cm-hero-ridge" aria-hidden />
 
         <div className="container-main">
-          <h1 className="cm-h1">
-            <Line i={0}>Community for Sri Lanka’s</Line>
-            <Line i={1}>real discoveries.</Line>
-          </h1>
+          <div className="cm-herowrap">
+           
+            <h1 className="cm-h1">
+              <Line i={0}>Real places. Real stories.</Line>
+              <Line i={1}>Your kind of explorers.</Line>
+            </h1>
 
-          <p className="cm-lead">
-            <Line i={2}>Field reviews, trail questions and safety alerts for hidden places,</Line>
-            <Line i={3}>shared by people who have been there.</Line>
-          </p>
+            <p className="cm-lead cm-fade" style={{ ["--d" as string]: 0 }}>
+              Field notes, local wisdom, and honest advice from people who’ve taken the road less travelled.
+            </p>
 
-          <div className="cm-cta cm-fade" style={{ ["--d" as string]: 0 }}>
-            <button type="button" onClick={() => openModal("review")} className="cm-btn white">
-              Write a review
-            </button>
-            <button type="button" onClick={() => openModal("discussion")} className="cm-textbtn">
-              Ask a question
-            </button>
-            <button type="button" onClick={() => openModal("tip")} className="cm-textbtn">
-              Share a trail tip
-            </button>
-          </div>
-
-          {/* Real figures from your data, written as a plain line */}
-          <p className="cm-facts cm-fade" style={{ ["--d" as string]: 1 }}>
-            {loadingData ? (
-              "Loading community data..."
+            <div className="cm-cta cm-fade" style={{ ["--d" as string]: 1 }}>
+              <button type="button" onClick={() => openModal("review")} className="cm-btn amber">
+                Write a review
+              </button>
+              <button type="button" onClick={() => openModal("discussion")} className="cm-textbtn">
+                Ask the community <ArrowRight size={14} aria-hidden />
+              </button>
+              <button type="button" onClick={() => openModal("tip")} className="cm-textbtn">
+                Share a trail tip
+              </button>
+            </div>
+            
+            {/* NEW: chip now shows the current slide's place name + district, with dots and arrows */}
+            {heroSlides.length > 0 ? (
+              <div className="cm-chip-loc cm-slidechip cm-fade" style={{ ["--d" as string]: 2 }}>
+                <MapPin size={13} aria-hidden />
+                <Link
+                  key={heroSlides[heroIdx].id}
+                  href={`/places?search=${encodeURIComponent(heroSlides[heroIdx].name)}`}
+                  className="cm-slidename"
+                >
+                  {heroSlides[heroIdx].name}
+                  {heroSlides[heroIdx].district ? ` · ${heroSlides[heroIdx].district}` : ""}
+                </Link>
+                {heroSlides.length > 1 && (
+                  <>
+                    <span className="cm-dots">
+                      {heroSlides.map((p, i) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          aria-label={`Show ${p.name}`}
+                          aria-pressed={i === heroIdx}
+                          onClick={() => goHero(i)}
+                        />
+                      ))}
+                    </span>
+                    <button type="button" className="cm-hbtn" onClick={() => stepHero(-1)} aria-label="Previous place">
+                      <ChevronLeft size={14} />
+                    </button>
+                    <button type="button" className="cm-hbtn" onClick={() => stepHero(1)} aria-label="Next place">
+                      <ChevronRight size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
             ) : (
-              <>
-                <b>{places.length}</b> places · <b>{reviews.length}</b> reviews · <b>{availableDistricts.length}</b>{" "}
-                districts · <b>{profileCount}</b> members
-              </>
+              <span className="cm-chip-loc cm-fade" style={{ ["--d" as string]: 2 }}>
+                <MapPin size={13} aria-hidden /> The hill country, Sri Lanka
+              </span>
             )}
-          </p>
+          </div>
         </div>
       </section>
 
-      {/* ====================================================================
-          PLACE FILTER (from website database)
-          ==================================================================== */}
+      {/* PLACE FILTER */}
       <section className="cm-filter">
         <div className="container-main">
           <div className="cm-filter-top">
-            <span>Show posts about</span>
-            <Link href="/places/new" className="cm-link">
-              Upload another place
-            </Link>
-          </div>
-
-          {/* NEW: search + scroll arrows */}
-          <div className="cm-pbar">
+            <div>
+              <h2>Find your corner of the island</h2>
+              <p>Follow the places you’re curious about.</p>
+            </div>
             <div className="cm-search">
               <Search size={15} className="s" aria-hidden />
               <input
@@ -1174,6 +1291,37 @@ export default function CommunityPage() {
                 </button>
               )}
             </div>
+          </div>
+
+          <div className="cm-pbar">
+            <div className="cm-chips cm-hide-scroll" ref={chipsRef}>
+              <button
+                type="button"
+                aria-pressed={selectedPlaceFilter === "all"}
+                onClick={() => setSelectedPlaceFilter("all")}
+                className="cm-chip"
+              >
+                All places<small>{places.length}</small>
+              </button>
+              {chipPlaces.map((place) => (
+                <button
+                  key={place.id}
+                  type="button"
+                  aria-pressed={selectedPlaceFilter === place.id}
+                  onClick={() => setSelectedPlaceFilter(place.id)}
+                  className="cm-chip"
+                >
+                  {place.name}
+                  {place.district && <small>{place.district}</small>}
+                </button>
+              ))}
+              {placeSearch && chipPlaces.length === 0 && (
+                <span className="cm-nomatch">No places match “{placeSearch}”</span>
+              )}
+            </div>
+            <Link href="/places" className="cm-link" style={{ whiteSpace: "nowrap" }}>
+              View all places
+            </Link>
             <div className="cm-arrows">
               <button type="button" className="cm-arrow" onClick={() => scrollChips(-1)} aria-label="Scroll places left">
                 <ChevronLeft size={16} />
@@ -1183,463 +1331,513 @@ export default function CommunityPage() {
               </button>
             </div>
           </div>
-
-          <div className="cm-chips cm-hide-scroll" ref={chipsRef}>
-            <button
-              type="button"
-              aria-pressed={selectedPlaceFilter === "all"}
-              onClick={() => setSelectedPlaceFilter("all")}
-              className="cm-chip"
-            >
-              All places {places.length}
-            </button>
-            {chipPlaces.map((place) => (
-              <button
-                key={place.id}
-                type="button"
-                aria-pressed={selectedPlaceFilter === place.id}
-                onClick={() => setSelectedPlaceFilter(place.id)}
-                className="cm-chip"
-              >
-                {place.name}
-                {place.district && <small>{place.district}</small>}
-              </button>
-            ))}
-            {placeSearch && chipPlaces.length === 0 && (
-              <span className="cm-nomatch">No places match “{placeSearch}”</span>
-            )}
-          </div>
         </div>
       </section>
 
-      {/* ====================================================================
-          TABS & SEARCH
-          ==================================================================== */}
-      <section className="cm-tabs sticky top-15 z-30">
+      {/* THREE-COLUMN COMMUNITY AREA */}
+      <section className="cm-shell">
         <div className="container-main">
-          <div className="cm-tabs-in">
-            <div className="cm-tablist cm-hide-scroll" role="tablist" aria-label="Community sections">
-              {tabs.map(({ id, label, count }) => (
+          <div className="cm-layout">
+            {/* LEFT: section nav + stats */}
+            <aside className="cm-side">
+              <div className="cm-navcard">
+                <p className="cm-navlabel">Community</p>
+                <div className="cm-nav" role="tablist" aria-label="Community sections" aria-orientation="vertical">
+                  {navItems.map(({ id, label, count, icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === id && !showLikedOnly}
+                      onClick={() => goTab(id)}
+                      className="cm-navbtn"
+                    >
+                      {icon}
+                      <span>{label}</span>
+                      {count !== undefined && <small>{count}</small>}
+                    </button>
+                  ))}
+                </div>
+                <div className="cm-sep" />
                 <button
-                  key={id}
                   type="button"
-                  role="tab"
-                  aria-selected={activeTab === id}
-                  onClick={() => setActiveTab(id)}
-                  className="cm-tab"
+                  aria-pressed={showLikedOnly}
+                  onClick={() => {
+                    setActiveTab("reviews");
+                    setShowLikedOnly((v) => !v);
+                  }}
+                  className="cm-navbtn"
                 >
-                  {label}
-                  {count !== undefined && <small>{count}</small>}
+                  <Bookmark size={16} />
+                  <span>Liked posts</span>
                 </button>
-              ))}
-            </div>
+              </div>
 
-            <div className="cm-search">
-              <Search size={15} className="s" aria-hidden />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search reviews or tips"
-                aria-label="Search reviews, discussions and tips"
-              />
-              {searchQuery && (
-                <button type="button" onClick={() => setSearchQuery("")} aria-label="Clear search">
-                  <X size={14} />
+              <div className="cm-card cm-stat">
+                <h3>Small island. Big discoveries.</h3>
+                {loadingData ? (
+                  <p className="cm-meta" style={{ margin: "10px 0 0" }}>Loading community data...</p>
+                ) : (
+                  <dl>
+                    <div><dt>Places</dt><dd>{places.length}</dd></div>
+                    <div><dt>Districts</dt><dd>{availableDistricts.length}</dd></div>
+                    <div><dt>Reviews</dt><dd>{reviews.length}</dd></div>
+                    <div><dt>Active explorers</dt><dd>{profileCount}</dd></div>
+                  </dl>
+                )}
+                <button type="button" onClick={() => openModal("review")} className="cm-link">
+                  Be part of the beginning <ArrowRight size={12} aria-hidden />
                 </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+              </div>
+            </aside>
 
-      {/* ====================================================================
-          TAB 1: REVIEWS & FIELD NOTES
-          ==================================================================== */}
-      {activeTab === "reviews" && (
-        <section key="reviews" className="cm-panel">
-          <div className="container-main">
-            <div className="cm-wrap">
-              <PanelHead
-                title="Reviews & field notes"
-                text="What people found when they actually went."
-                actionLabel="Write a review"
-                onAction={() => openModal("review")}
-              />
-
-              {filteredReviews.length === 0 ? (
-                <Empty
-                  title="No reviews yet"
-                  text={`${places.length} places are uploaded on the website. Be the first to share a field report or an insider tip for one of them.`}
-                  actionLabel="Write the first review"
-                  onAction={() => openModal("review")}
-                />
-              ) : (
+            {/* CENTER: feed */}
+            <main style={{ minWidth: 0 }}>
+              <div className="cm-banner">
                 <div>
-                  {filteredReviews.map((rev, idx) => {
-                    const isLiked = !!likedItems[rev.id];
-                    return (
-                      <article key={rev.id} className="cm-entry cm-up" style={{ ["--i" as string]: Math.min(idx, 8) }}>
-                        {/* Author rail */}
-                        <div className="cm-rail">
-                          {rev.author_name && (
-                            <div className="who">
-                              <span className="cm-avatar">{rev.author_name.charAt(0)}</span>
-                              <div>
-                                <span className="nm">{rev.author_name}</span>
-                                {rev.author_handle}
+                  <b>Every discovery has a story.</b>
+                  <span>Share yours with fellow explorers.</span>
+                </div>
+                <button type="button" onClick={() => openModal("review")} className="cm-btn dark">
+                  Write a review
+                </button>
+              </div>
+
+              {/* TAB 1: REVIEWS */}
+              {activeTab === "reviews" && (
+                <div key="reviews" className="cm-panel">
+                  <PanelHead
+                    title={showLikedOnly ? "Liked posts" : "Reviews & field notes"}
+                    text={showLikedOnly ? "Reviews you have liked." : "What people found when they actually went."}
+                    right={
+                      <div className="cm-tools">
+                        {searchBox}
+                        <select
+                          className="cm-select"
+                          value={sortOrder}
+                          onChange={(e) => setSortOrder(e.target.value as "recent" | "liked")}
+                          aria-label="Sort reviews"
+                        >
+                          <option value="recent">Most recent</option>
+                          <option value="liked">Most liked</option>
+                        </select>
+                      </div>
+                    }
+                  />
+
+                  {visibleReviews.length === 0 ? (
+                    <Empty
+                      title={showLikedOnly ? "No liked posts yet" : "No reviews yet"}
+                      text={
+                        showLikedOnly
+                          ? "Tap the heart on a review and it will show up here."
+                          : `${places.length} places are uploaded on the website. Be the first to share a field report or an insider tip for one of them.`
+                      }
+                      actionLabel="Write the first review"
+                      onAction={() => openModal("review")}
+                    />
+                  ) : (
+                    <div className="cm-list">
+                      {visibleReviews.map((rev, idx) => {
+                        const isLiked = !!likedItems[rev.id];
+                        return (
+                          <article key={rev.id} className="cm-post cm-up" style={{ ["--i" as string]: Math.min(idx, 8) }}>
+                            <div className="cm-post-top">
+                              <span className="cm-avatar">{rev.author_name ? rev.author_name.charAt(0) : "E"}</span>
+                              <div className="cm-who">
+                                <b>{rev.author_name || "Explorer"}</b>
+                                <small>
+                                  {rev.author_handle ? `${rev.author_handle} · ` : ""}
+                                  {new Date(rev.created_at).toLocaleDateString()}
+                                </small>
                               </div>
                             </div>
-                          )}
-                          <div style={{ marginTop: rev.author_name ? 10 : 0 }}>{new Date(rev.created_at).toLocaleDateString()}</div>
-                          <StarRow rating={rev.rating} />
-                        </div>
 
-                        {/* Review */}
-                        <div>
-                          <div className="cm-where">
-                            {rev.place_image && (
-                              <span className="cm-thumb">
-                                <Image src={rev.place_image} alt="" fill unoptimized className="object-cover" />
-                              </span>
-                            )}
-                            <span>
-                              <b>{rev.place_name}</b> · {rev.place_district}
-                            </span>
-                          </div>
-
-                          <h3 className="cm-title">{rev.title}</h3>
-                          <p className="cm-body">{rev.body}</p>
-
-                          {rev.key_tip && (
-                            <p className="cm-note">
-                              <b>Insider tip: </b>
-                              {rev.key_tip}
-                            </p>
-                          )}
-
-                          <div className="cm-acts">
-                            <button
-                              type="button"
-                              aria-pressed={isLiked}
-                              onClick={() => handleToggleLike(rev.id)}
-                              className="cm-act"
-                            >
-                              <Heart size={15} aria-hidden /> {rev.likes} {rev.likes === 1 ? "like" : "likes"}
-                            </button>
-                            <span className="cm-meta">
-                              {rev.comments?.length || 0} {(rev.comments?.length || 0) === 1 ? "comment" : "comments"}
-                            </span>
-                            <Link href={`/places?search=${encodeURIComponent(rev.place_name)}`} className="cm-link" style={{ fontSize: 13 }}>
-                              View place <ExternalLink size={12} aria-hidden />
-                            </Link>
-                            <button type="button" onClick={() => handleRemoveReview(rev.id)} className="cm-act rm" style={{ marginLeft: "auto" }}>
-                              <Trash2 size={14} aria-hidden /> Remove
-                            </button>
-                          </div>
-
-                          {/* Comments */}
-                          <div className="cm-replies">
-                            {rev.comments &&
-                              rev.comments.map((comm) => (
-                                <div key={comm.id} className="cm-reply">
-                                  <div>
-                                    <span className="nm">{comm.author_name}</span>
-                                    <small>{comm.author_handle}</small>
-                                    <p>{comm.text}</p>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveComment(rev.id, comm.id)}
-                                    title="Remove comment"
-                                    aria-label="Remove comment"
-                                    className="cm-act rm"
-                                  >
-                                    <Trash2 size={13} />
-                                  </button>
-                                </div>
-                              ))}
-
-                            <form onSubmit={(e) => handleAddComment(rev.id, e)} className="cm-inline">
-                              <input
-                                type="text"
-                                required
-                                value={commentInputText[rev.id] || ""}
-                                onChange={(e) =>
-                                  setCommentInputText((prev) => ({
-                                    ...prev,
-                                    [rev.id]: e.target.value,
-                                  }))
-                                }
-                                placeholder="Add a comment or question..."
-                                aria-label="Add a comment"
-                              />
-                              <button type="submit" className="cm-btn line sm">
-                                Post
-                              </button>
-                            </form>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ====================================================================
-          TAB 2: DISCUSSIONS & Q&A
-          ==================================================================== */}
-      {activeTab === "discussions" && (
-        <section key="discussions" className="cm-panel">
-          <div className="container-main">
-            <div className="cm-wrap">
-              <PanelHead
-                title="Questions & answers"
-                text="Road conditions, guides, permits. Ask people who know the place."
-                actionLabel="Ask a question"
-                onAction={() => openModal("discussion")}
-              />
-
-              {filteredDiscussions.length === 0 ? (
-                <Empty
-                  title="No questions yet"
-                  text="Wondering about road conditions, local guides or permits for an uploaded place? Ask here."
-                  actionLabel="Ask the first question"
-                  onAction={() => openModal("discussion")}
-                />
-              ) : (
-                <div>
-                  {filteredDiscussions.map((disc, idx) => {
-                    const isExpanded = expandedDiscussionId === disc.id;
-                    return (
-                      <div key={disc.id} className="cm-row cm-up" style={{ ["--i" as string]: Math.min(idx, 8) }}>
-                        <div className="cm-row-head">
-                          <div>
-                            <div className="cm-meta">
-                              {disc.place_name ? `${disc.place_name} · ` : ""}
-                              {disc.district} · by {disc.author_name}, {new Date(disc.created_at).toLocaleDateString()}
+                            <div className="cm-tagrow">
+                              <span className="cm-tag">Field note</span>
+                              <StarRow rating={rev.rating} />
                             </div>
-                            <h3>{disc.title}</h3>
-                          </div>
 
-                          <button
-                            type="button"
-                            aria-expanded={isExpanded}
-                            onClick={() => setExpandedDiscussionId(isExpanded ? null : disc.id)}
-                            className="cm-toggle"
-                          >
-                            {disc.replies?.length || 0} {(disc.replies?.length || 0) === 1 ? "answer" : "answers"}
-                            <ChevronDown size={15} aria-hidden />
-                          </button>
-                        </div>
+                            <h3 className="cm-title">{rev.title}</h3>
+                            <div className="cm-where">
+                              <MapPin size={13} aria-hidden /> {rev.place_name} · {rev.place_district}
+                            </div>
 
-                        {isExpanded && (
-                          <div className="cm-replies" style={{ marginTop: 16 }}>
-                            {disc.replies && disc.replies.length > 0 ? (
-                              disc.replies.map((reply) => (
-                                <div key={reply.id} className="cm-reply">
-                                  <div>
-                                    <span className="nm">{reply.author_name}</span>
-                                    <small>{new Date(reply.created_at).toLocaleDateString()}</small>
-                                    <p>{reply.text}</p>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="cm-meta" style={{ margin: "0 0 12px" }}>
-                                No answers yet.
+                            {rev.place_image && (
+                              <div className="cm-photo">
+                                <Image src={rev.place_image} alt={rev.place_name} fill unoptimized className="object-cover" />
+                              </div>
+                            )}
+
+                            <p className="cm-body">{rev.body}</p>
+
+                            {rev.key_tip && (
+                              <p className="cm-note">
+                                <b>Insider tip: </b>
+                                {rev.key_tip}
                               </p>
                             )}
 
-                            <form onSubmit={(e) => handleAddReply(disc.id, e)} className="cm-inline">
-                              <input
-                                type="text"
-                                required
-                                value={replyInputText[disc.id] || ""}
-                                onChange={(e) =>
-                                  setReplyInputText((prev) => ({
-                                    ...prev,
-                                    [disc.id]: e.target.value,
-                                  }))
-                                }
-                                placeholder="Write your answer..."
-                                aria-label="Write your answer"
-                              />
-                              <button type="submit" className="cm-btn line sm">
-                                Answer
+                            <div className="cm-acts">
+                              <button type="button" aria-pressed={isLiked} onClick={() => handleToggleLike(rev.id)} className="cm-act">
+                                <Heart size={15} aria-hidden /> {rev.likes} {rev.likes === 1 ? "like" : "likes"}
                               </button>
-                            </form>
+                              <span className="cm-act" style={{ cursor: "default" }}>
+                                <MessageCircle size={15} aria-hidden /> {rev.comments?.length || 0}{" "}
+                                {(rev.comments?.length || 0) === 1 ? "comment" : "comments"}
+                              </span>
+                              <Link href={`/places?search=${encodeURIComponent(rev.place_name)}`} className="cm-link" style={{ marginLeft: "auto" }}>
+                                View place <ExternalLink size={12} aria-hidden />
+                              </Link>
+                              <button type="button" onClick={() => handleRemoveReview(rev.id)} className="cm-act rm">
+                                <Trash2 size={14} aria-hidden /> Remove
+                              </button>
+                            </div>
 
-                            <button type="button" onClick={() => handleRemoveDiscussion(disc.id)} className="cm-act rm" style={{ marginTop: 14 }}>
-                              <Trash2 size={14} aria-hidden /> Remove this question
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
+                            <div className="cm-replies">
+                              {rev.comments &&
+                                rev.comments.map((comm) => (
+                                  <div key={comm.id} className="cm-reply">
+                                    <div>
+                                      <span className="nm">{comm.author_name}</span>
+                                      <small>{comm.author_handle}</small>
+                                      <p>{comm.text}</p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveComment(rev.id, comm.id)}
+                                      title="Remove comment"
+                                      aria-label="Remove comment"
+                                      className="cm-act rm"
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                ))}
 
-      {/* ====================================================================
-          TAB 3: TRAIL TIPS & ALERTS
-          ==================================================================== */}
-      {activeTab === "tips" && (
-        <section key="tips" className="cm-panel">
-          <div className="container-main">
-            <div className="cm-wrap">
-              <PanelHead
-                title="Trail tips & safety alerts"
-                text="Short, practical notes from people on the ground."
-                actionLabel="Share a tip"
-                onAction={() => openModal("tip")}
-              />
-
-              {filteredTips.length === 0 ? (
-                <Empty
-                  title="No tips or alerts yet"
-                  text="Know a shortcut, a leech remedy or road advice for an uploaded spot? Share it with the community."
-                  actionLabel="Share the first tip"
-                  onAction={() => openModal("tip")}
-                />
-              ) : (
-                <div style={{ marginTop: 8 }}>
-                  {filteredTips.map((tip, idx) => {
-                    const meta = SEVERITY_META[tip.severity];
-                    return (
-                      <article
-                        key={tip.id}
-                        className="cm-tip cm-up"
-                        style={{ ["--i" as string]: Math.min(idx, 8), ["--c" as string]: meta.color, marginTop: 18 }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                          <span className="cm-sev">{meta.label}</span>
-                          <button type="button" onClick={() => handleRemoveTip(tip.id)} className="cm-act rm">
-                            <Trash2 size={14} aria-hidden /> Remove
-                          </button>
-                        </div>
-                        <h3>{tip.title}</h3>
-                        {tip.place_name && (
-                          <div className="cm-meta" style={{ marginTop: 2 }}>
-                            {tip.place_name} · {tip.district}
-                          </div>
-                        )}
-                        <p>{tip.text}</p>
-                        <div className="cm-meta" style={{ marginTop: 10 }}>
-                          By {tip.author_name}, {new Date(tip.created_at).toLocaleDateString()}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ====================================================================
-          TAB 4: REAL COMMUNITY PROFILES (FROM SUPABASE PROFILES)
-          ==================================================================== */}
-      {activeTab === "contributors" && (
-        <section key="contributors" className="cm-panel">
-          <div className="container-main">
-            <div className="cm-wrap">
-              <PanelHead title="Community profiles" text="The people who have signed up and shared places." />
-
-              {profiles.length === 0 && !currentUser ? (
-                <div className="cm-empty">
-                  <h3>No profiles yet</h3>
-                  <p>Sign up or log in to create your explorer profile on Hidden Lanka Explorer.</p>
-                  <Link href="/auth/sign-in" className="cm-btn dark">
-                    Sign in / register
-                  </Link>
-                </div>
-              ) : (
-                <div className="cm-grid">
-                  {currentUser && (
-                    <div className="cm-profile me cm-up" style={{ ["--i" as string]: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span className="cm-avatar lg">{currentUser.name?.charAt(0) || "U"}</span>
-                        <div>
-                          <div className="nm">{currentUser.name}</div>
-                          <div className="cm-meta">{currentUser.handle} · you</div>
-                        </div>
-                      </div>
-                      <Link href="/profile" className="cm-link" style={{ marginTop: "auto" }}>
-                        View or edit your profile
-                      </Link>
+                              <form onSubmit={(e) => handleAddComment(rev.id, e)} className="cm-inline">
+                                <input
+                                  type="text"
+                                  required
+                                  value={commentInputText[rev.id] || ""}
+                                  onChange={(e) =>
+                                    setCommentInputText((prev) => ({
+                                      ...prev,
+                                      [rev.id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Add a comment or question..."
+                                  aria-label="Add a comment"
+                                />
+                                <button type="submit" className="cm-btn line sm">
+                                  Post
+                                </button>
+                              </form>
+                            </div>
+                          </article>
+                        );
+                      })}
                     </div>
                   )}
-
-                  {profiles
-                    .filter((p) => p.id !== currentUser?.id)
-                    .map((prof, idx) => (
-                      <div key={prof.id} className="cm-profile cm-up" style={{ ["--i" as string]: Math.min(idx + 1, 8) }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <span className="cm-avatar lg">
-                            {prof.avatar_url ? (
-                              <Image src={prof.avatar_url} alt="" fill unoptimized className="object-cover" />
-                            ) : (
-                              prof.display_name?.charAt(0) || prof.username?.charAt(0) || "E"
-                            )}
-                          </span>
-                          <div>
-                            <div className="nm">{prof.display_name || prof.username || "Registered Explorer"}</div>
-                            <div className="cm-meta">
-                              {prof.username ? `@${prof.username}` : "@explorer"}
-                              {prof.district ? ` · ${prof.district}` : ""}
-                            </div>
-                          </div>
-                        </div>
-                        {prof.bio && <p className="line-clamp-2">{prof.bio}</p>}
-                      </div>
-                    ))}
                 </div>
               )}
-            </div>
-          </div>
-        </section>
-      )}
 
-      {/* ====================================================================
-          TAB 5: TRAVELER ETHICS
-          ==================================================================== */}
-      {activeTab === "ethics" && (
-        <section key="ethics" className="cm-panel">
-          <div className="container-main">
-            <div className="cm-wrap">
-              <PanelHead
-                title="Explore with reverence and leave no trace"
-                text="Uploaded places stay clean and safe when explorers respect nature and local customs."
-              />
-              <div>
-                {ETHICS.map((item, i) => (
-                  <div key={item.title} className="cm-ethic cm-up" style={{ ["--i" as string]: i }}>
-                    <span className="n">{i + 1}</span>
-                    <div>
-                      <h3>{item.title}</h3>
-                      <p>{item.text}</p>
+              {/* TAB 2: DISCUSSIONS */}
+              {activeTab === "discussions" && (
+                <div key="discussions" className="cm-panel">
+                  <PanelHead
+                    title="Questions & answers"
+                    text="Road conditions, guides, permits. Ask people who know the place."
+                    right={
+                      <div className="cm-tools">
+                        {searchBox}
+                        <button type="button" onClick={() => openModal("discussion")} className="cm-btn dark sm">
+                          Ask a question
+                        </button>
+                      </div>
+                    }
+                  />
+
+                  {filteredDiscussions.length === 0 ? (
+                    <Empty
+                      title="No questions yet"
+                      text="Wondering about road conditions, local guides or permits for an uploaded place? Ask here."
+                      actionLabel="Ask the first question"
+                      onAction={() => openModal("discussion")}
+                    />
+                  ) : (
+                    <div className="cm-list">
+                      {filteredDiscussions.map((disc, idx) => {
+                        const isExpanded = expandedDiscussionId === disc.id;
+                        return (
+                          <div key={disc.id} className="cm-post cm-up" style={{ ["--i" as string]: Math.min(idx, 8) }}>
+                            <div className="cm-qhead">
+                              <div>
+                                <span className="cm-tag q">Question</span>
+                                <span className="cm-meta" style={{ marginLeft: 8 }}>
+                                  {disc.place_name ? `${disc.place_name} · ` : ""}
+                                  {disc.district}
+                                </span>
+                                <h3>{disc.title}</h3>
+                                <div className="cm-meta" style={{ marginTop: 4 }}>
+                                  by {disc.author_name}, {new Date(disc.created_at).toLocaleDateString()}
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                aria-expanded={isExpanded}
+                                onClick={() => setExpandedDiscussionId(isExpanded ? null : disc.id)}
+                                className="cm-toggle"
+                              >
+                                {disc.replies?.length || 0} {(disc.replies?.length || 0) === 1 ? "answer" : "answers"}
+                                <ChevronDown size={15} aria-hidden />
+                              </button>
+                            </div>
+
+                            {isExpanded && (
+                              <div className="cm-replies">
+                                {disc.replies && disc.replies.length > 0 ? (
+                                  disc.replies.map((reply) => (
+                                    <div key={reply.id} className="cm-reply">
+                                      <div>
+                                        <span className="nm">{reply.author_name}</span>
+                                        <small>{new Date(reply.created_at).toLocaleDateString()}</small>
+                                        <p>{reply.text}</p>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="cm-meta" style={{ margin: "0 0 12px" }}>
+                                    No answers yet.
+                                  </p>
+                                )}
+
+                                <form onSubmit={(e) => handleAddReply(disc.id, e)} className="cm-inline">
+                                  <input
+                                    type="text"
+                                    required
+                                    value={replyInputText[disc.id] || ""}
+                                    onChange={(e) =>
+                                      setReplyInputText((prev) => ({
+                                        ...prev,
+                                        [disc.id]: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Write your answer..."
+                                    aria-label="Write your answer"
+                                  />
+                                  <button type="submit" className="cm-btn line sm">
+                                    Answer
+                                  </button>
+                                </form>
+
+                                <button type="button" onClick={() => handleRemoveDiscussion(disc.id)} className="cm-act rm" style={{ marginTop: 14 }}>
+                                  <Trash2 size={14} aria-hidden /> Remove this question
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+                  )}
+                </div>
+              )}
 
-      {/* ====================================================================
-          MODAL: ADD CONTENT USING REAL UPLOADED PLACES
-          ==================================================================== */}
+              {/* TAB 3: TIPS */}
+              {activeTab === "tips" && (
+                <div key="tips" className="cm-panel">
+                  <PanelHead
+                    title="Trail tips & safety alerts"
+                    text="Short, practical notes from people on the ground."
+                    right={
+                      <div className="cm-tools">
+                        {searchBox}
+                        <button type="button" onClick={() => openModal("tip")} className="cm-btn dark sm">
+                          Share a tip
+                        </button>
+                      </div>
+                    }
+                  />
+
+                  {filteredTips.length === 0 ? (
+                    <Empty
+                      title="No tips or alerts yet"
+                      text="Know a shortcut, a leech remedy or road advice for an uploaded spot? Share it with the community."
+                      actionLabel="Share the first tip"
+                      onAction={() => openModal("tip")}
+                    />
+                  ) : (
+                    <div className="cm-list">
+                      {filteredTips.map((tip, idx) => {
+                        const meta = SEVERITY_META[tip.severity];
+                        return (
+                          <article
+                            key={tip.id}
+                            className="cm-tip cm-up"
+                            style={{ ["--i" as string]: Math.min(idx, 8), ["--c" as string]: meta.color }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                              <span className="cm-sev">{meta.label}</span>
+                              <button type="button" onClick={() => handleRemoveTip(tip.id)} className="cm-act rm">
+                                <Trash2 size={14} aria-hidden /> Remove
+                              </button>
+                            </div>
+                            <h3>{tip.title}</h3>
+                            {tip.place_name && (
+                              <div className="cm-meta" style={{ marginTop: 2 }}>
+                                {tip.place_name} · {tip.district}
+                              </div>
+                            )}
+                            <p>{tip.text}</p>
+                            <div className="cm-meta" style={{ marginTop: 10 }}>
+                              By {tip.author_name}, {new Date(tip.created_at).toLocaleDateString()}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: PROFILES */}
+              {activeTab === "contributors" && (
+                <div key="contributors" className="cm-panel">
+                  <PanelHead title="Community profiles" text="The people who have signed up and shared places." />
+
+                  {profiles.length === 0 && !currentUser ? (
+                    <div className="cm-empty">
+                      <h3>No profiles yet</h3>
+                      <p>Sign up or log in to create your explorer profile on Hidden Lanka Explorer.</p>
+                      <Link href="/auth/sign-in" className="cm-btn dark">
+                        Sign in / register
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="cm-grid">
+                      {currentUser && (
+                        <div className="cm-profile me cm-up" style={{ ["--i" as string]: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <span className="cm-avatar lg">{currentUser.name?.charAt(0) || "U"}</span>
+                            <div>
+                              <div className="nm">{currentUser.name}</div>
+                              <div className="cm-meta">{currentUser.handle} · you</div>
+                            </div>
+                          </div>
+                          <Link href="/profile" className="cm-link" style={{ marginTop: "auto" }}>
+                            View or edit your profile
+                          </Link>
+                        </div>
+                      )}
+
+                      {profiles
+                        .filter((p) => p.id !== currentUser?.id)
+                        .map((prof, idx) => (
+                          <div key={prof.id} className="cm-profile cm-up" style={{ ["--i" as string]: Math.min(idx + 1, 8) }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <span className="cm-avatar lg">
+                                {prof.avatar_url ? (
+                                  <Image src={prof.avatar_url} alt="" fill unoptimized className="object-cover" />
+                                ) : (
+                                  prof.display_name?.charAt(0) || prof.username?.charAt(0) || "E"
+                                )}
+                              </span>
+                              <div>
+                                <div className="nm">{prof.display_name || prof.username || "Registered Explorer"}</div>
+                                <div className="cm-meta">
+                                  {prof.username ? `@${prof.username}` : "@explorer"}
+                                  {prof.district ? ` · ${prof.district}` : ""}
+                                </div>
+                              </div>
+                            </div>
+                            {prof.bio && <p className="line-clamp-2">{prof.bio}</p>}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 5: ETHICS */}
+              {activeTab === "ethics" && (
+                <div key="ethics" className="cm-panel">
+                  <PanelHead
+                    title="Explore with reverence and leave no trace"
+                    text="Uploaded places stay clean and safe when explorers respect nature and local customs."
+                  />
+                  <div className="cm-list">
+                    {ETHICS.map((item, i) => (
+                      <div key={item.title} className="cm-ethic cm-up" style={{ ["--i" as string]: i }}>
+                        <span className="ic"><Check size={16} aria-hidden /></span>
+                        <div>
+                          <h3>{item.title}</h3>
+                          <p>{item.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </main>
+
+            {/* RIGHT: side cards */}
+            <aside className="cm-rail2">
+              <div className="cm-card cm-rc cm-wisdom">
+                <h4>A little local wisdom</h4>
+                <p>
+                  {latestTip
+                    ? `${latestTip.title}. ${latestTip.text}`
+                    : "Waterfalls are best after rain. Check local conditions, go with a buddy, and know when to turn back."}
+                </p>
+                <button type="button" onClick={() => goTab("tips")} className="cm-link">
+                  Explore trail tips & alerts <ArrowRight size={12} aria-hidden />
+                </button>
+              </div>
+
+              {featuredPlace && (
+                <div className="cm-card cm-rc">
+                  <p className="k">Off the beaten path</p>
+                  <div className="ph">
+                    <Image src={featuredPlace.hero_image_url as string} alt={featuredPlace.name} fill unoptimized className="object-cover" />
+                  </div>
+                  <h4>{featuredPlace.name}</h4>
+                  <p className="cm-meta" style={{ marginTop: 2 }}>
+                    {[featuredPlace.district, featuredPlace.category_name].filter(Boolean).join(" · ")}
+                  </p>
+                  {featuredPlace.short_description && <p>{featuredPlace.short_description}</p>}
+                  <Link href={`/places?search=${encodeURIComponent(featuredPlace.name)}`} className="cm-link">
+                    Discover this place <ArrowRight size={12} aria-hidden />
+                  </Link>
+                </div>
+              )}
+
+              <div className="cm-card cm-rc cm-green">
+                <h4>Keep the hidden, beautiful.</h4>
+                <ul>
+                  <li><Check size={14} aria-hidden /> Leave no footprints</li>
+                  <li><Check size={14} aria-hidden /> Respect local communities</li>
+                  <li><Check size={14} aria-hidden /> Share thoughtfully, not precisely</li>
+                </ul>
+                <button type="button" onClick={() => goTab("ethics")} className="cm-link">
+                  Our traveler’s code <ArrowRight size={12} aria-hidden />
+                </button>
+              </div>
+
+              <div className="cm-card cm-rc">
+                <h4>Know a place we’re missing?</h4>
+                <p>Help us build a map of the best lesser-known places in Sri Lanka.</p>
+                <Link href="/places/new" className="cm-link">
+                  Suggest a hidden place <ArrowRight size={12} aria-hidden />
+                </Link>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      {/* MODAL (unchanged markup) */}
       {isModalOpen && (
         <div className="cm-overlay" role="dialog" aria-modal="true" aria-label="Add to the community" onClick={() => setIsModalOpen(false)}>
           <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
