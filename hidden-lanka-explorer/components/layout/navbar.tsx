@@ -5,6 +5,7 @@ import { Compass, Menu, Search, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import NotificationBell from "@/components/notifications/notification-bell";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -63,6 +64,15 @@ export default function Navbar() {
             <Link href="/map" className="text-base hover:text-[black]">
               Map
             </Link>
+{isSignedIn && (
+  <Link
+    href="/trips"
+    className="text-base font-semibold text-[#123b26] hover:text-black"
+  >
+    Trips
+  </Link>
+)}
+            
 
             <Link href="/community" className="text-base hover:text-[black]">
               Community
@@ -87,6 +97,8 @@ export default function Navbar() {
       Search
       </span>
         </Link>
+           
+            {isSignedIn && <NotificationBell />}
             {isSignedIn ? (
              <Link
        href="/profile"
@@ -137,7 +149,16 @@ export default function Navbar() {
               >
                 Map
               </Link>
-
+       
+            { isSignedIn && (
+              <Link
+                href="/dashboard/trips"
+                onClick={() => setOpen(false)}
+                className="rounded-xl px-4 py-3 hover:bg-white/10 font-semibold text-[#123b26]"
+              >
+                Trips Planner
+              </Link>
+            )}
               <Link
                 href="/community"
                 onClick={() => setOpen(false)}

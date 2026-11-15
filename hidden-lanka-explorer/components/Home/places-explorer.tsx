@@ -21,13 +21,15 @@ const STYLES = `
 .pe-root{
   --ink:#0b2417; --gold:#a77a2f; --muted:#5f6d66; --line:#dfe5e1; --green:#1f6b4f;
   --ease:cubic-bezier(.22,1,.36,1);
-  font-family:Arial,Helvetica,sans-serif; background:	#d0d1d192; color:var(--ink); overflow:hidden;
+  font-family:Arial,Helvetica,sans-serif; background:	#d0d1d192; color:var(--ink); overflow:hidden;min-height:auto;
+  padding-top: 60px;
+  padding-bottom: 60px;
 }
 .pe-root *{ font-family:inherit; }
 .pe-root :focus-visible{ outline:3px solid var(--green); outline-offset:3px; border-radius:12px; }
 
 /* ----- heading: each line flies in from the right corner ----- */
-.pe-head{   max-width: 44rem;
+.pe-head{   max-width: 40rem;
   margin-left:auto;
   text-align:right;
 }

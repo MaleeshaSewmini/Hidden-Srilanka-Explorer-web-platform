@@ -1,142 +1,245 @@
-import { NextResponse } from "next/server";
-import {
-  SRI_LANKA_PLACES,
-  getLocalRecommendations,
-  type PlaceRecommendation,
-} from "@/lib/ai/knowledge-base";
 
-export async function POST(req: Request) {
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+
+export const runtime = "nodejs";
+
+type ChatTurn = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+function getText(row: Record<string, any>, keys: string[]): string {
+  for (const key of keys) {
+    const value = row[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function getImage(row: Record<string, any>): string {
+  const directImage = getText(row, [
+    "image_url",
+    "hero_image_url",
+    "hero_image",
+    "cover_image",
+    "image",
+  ]);
+
+  if (directImage) return directImage;
+
+  if (Array.isArray(row.images) && typeof row.images[0] === "string") {
+    return row.images[0];
+  }
+
+  return "";
+}
+
+function normalizePlace(row: Record<string, any>) {
+  const rating =
+    typeof row.rating === "number" ? row.rating : null;
+
+  return {
+    id: String(row.id),
+    name: getText(row, ["name", "place_name", "title"]),
+    description: getText(row, ["description", "short_description"]),
+    category: getText(row, ["category_name", "category"]) || "Destination",
+    district: getText(row, ["district_name", "district"]),
+    image: getImage(row),
+    rating,
+    bestTime: getText(row, ["best_time_to_visit", "best_season"]),
+    activities: row.activities ?? [],
+    safetyTips: getText(row, ["safety_tips", "safety_warnings"]),
+    travelInfo: getText(row, ["travel_info", "road_condition"]),
+  };
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const message: string = (body.message || "").trim();
+    const body = await request.json();
+
+    const message =
+      typeof body.message === "string" ? body.message.trim() : "";
+
+    const history: ChatTurn[] = Array.isArray(body.history)
+      ? body.history
+          .filter(
+            (item: any) =>
+              (item.role === "user" || item.role === "assistant") &&
+              typeof item.content === "string"
+          )
+          .slice(-8)
+      : [];
 
     if (!message) {
       return NextResponse.json(
-        { error: "Message is required" },
+        { error: "Please enter a message." },
         { status: 400 }
       );
     }
 
-    const apiKey =
-      process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-    // 1. If Gemini API key is available, call Google Gemini 2.5 Flash
-    if (apiKey) {
-      try {
-        const placesSummary = SRI_LANKA_PLACES.map(
-          (p) =>
-            `- [${p.slug}] "${p.name}" (${p.category}, ${p.district}): ${p.description} (Best season: ${p.season}, Difficulty: ${p.difficulty}). Tip: ${p.insiderTip}`
-        ).join("\n");
-
-        const prompt = `You are "Lanka AI", an expert personal travel guide for the "Hidden Lanka Explorer" platform in Sri Lanka.
-Your mission is to recommend genuine, hidden, and authentic destinations across Sri Lanka based on what the traveler is asking.
-
-Here is the verified catalog of destinations on our platform:
-${placesSummary}
-
-User request: "${message}"
-
-Instructions:
-1. Provide a warm, knowledgeable, and concise response (around 2-3 short paragraphs).
-2. Recommend 2 to 3 matching places from the catalog above whenever relevant. Explain specifically WHY each matches the user's preferences, season, or travel style.
-3. Include practical Sri Lankan local travel tips (e.g., best time of day, transport tuk-tuk/train, leeches/footwear, local etiquette).
-4. At the very end of your response, on a new line, write:
-MATCHED_SLUGS: [comma-separated slugs of the 1 to 3 places you recommended, e.g. "sigiriya-rock-fortress, knuckles-mountain-range"]
-`;
-
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: "user",
-                  parts: [{ text: prompt }],
-                },
-              ],
-              generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 800,
-              },
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          const rawText: string =
-            data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-          if (rawText) {
-            // Extract MATCHED_SLUGS if present
-            let replyText = rawText;
-            const matchedPlaces: PlaceRecommendation[] = [];
-
-            const slugMatch = rawText.match(/MATCHED_SLUGS:\s*\[?(.*?)\]?$/m);
-            if (slugMatch && slugMatch[1]) {
-              replyText = rawText.replace(/MATCHED_SLUGS:.*$/m, "").trim();
-              const slugs = slugMatch[1]
-                .split(",")
-                .map((s) => s.trim().toLowerCase().replace(/['"]/g, ""));
-
-              for (const slug of slugs) {
-                const found = SRI_LANKA_PLACES.find(
-                  (p) =>
-                    p.slug.toLowerCase() === slug ||
-                    p.id.toLowerCase() === slug ||
-                    p.name.toLowerCase().includes(slug)
-                );
-                if (found && !matchedPlaces.some((m) => m.id === found.id)) {
-                  matchedPlaces.push(found);
-                }
-              }
-            }
-
-            // Fallback: if no slugs were extracted, match by keyword
-            if (matchedPlaces.length === 0) {
-              for (const place of SRI_LANKA_PLACES) {
-                if (
-                  replyText.toLowerCase().includes(place.name.toLowerCase()) ||
-                  replyText.toLowerCase().includes(place.district.toLowerCase())
-                ) {
-                  matchedPlaces.push(place);
-                  if (matchedPlaces.length >= 3) break;
-                }
-              }
-            }
-
-            return NextResponse.json({
-              ok: true,
-              reply: replyText,
-              places:
-                matchedPlaces.length > 0
-                  ? matchedPlaces
-                  : SRI_LANKA_PLACES.slice(0, 2),
-              source: "gemini",
-            });
-          }
-        }
-      } catch (geminiError) {
-        console.error("Gemini API call failed, falling back to local engine:", geminiError);
-      }
+    if (message.length > 1000) {
+      return NextResponse.json(
+        { error: "Your message is too long." },
+        { status: 400 }
+      );
     }
 
-    // 2. Intelligent local fallback engine
-    const localResult = getLocalRecommendations(message);
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key is missing.");
+    }
+
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    ) {
+      throw new Error("Supabase environment variables are missing.");
+    }
+
+    // Connect to Supabase
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    );
+
+    // Retrieve real, approved destinations
+    const { data: rows, error } = await supabase
+      .from("places")
+      .select("*")
+      .in("status", ["approved", "published"])
+      .limit(150);
+
+    if (error) {
+      console.error("Supabase error:", error.message);
+      throw new Error("Could not retrieve destinations.");
+    }
+
+    const places = (rows || [])
+      .map((row) => normalizePlace(row as Record<string, any>))
+      .filter((place) => place.id && place.name);
+
+    // Send only useful destination information to OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const response = await openai.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.5",
+      store: false,
+      instructions: `
+You are Lanka AI Guide, the travel assistant for Hidden Sri Lanka Explorer.
+
+Your responsibilities:
+- Understand natural-language travel questions.
+- Help users discover lesser-known destinations in Sri Lanka.
+- Give friendly, concise and useful travel answers.
+- Understand preferences such as budget, travel duration, interests,
+  location, group size and travel style.
+- Ask a follow-up question if essential information is missing.
+
+DESTINATION RULES:
+- Recommend destinations ONLY from the supplied database list.
+- Never invent destination names or destination IDs.
+- Select destinations based on the user's actual preferences.
+- Return only IDs that exist in the supplied list.
+- Give a short, specific reason for each recommendation.
+- If no supplied destination matches, return an empty recommendations array.
+- Do not invent ratings, entrance fees, distances, travel times,
+  opening hours or weather information.
+- Use supplied safety information when discussing destination safety.
+- If information is unavailable, say so honestly.
+
+GENERAL QUESTIONS:
+- You may answer general questions about travelling in Sri Lanka.
+- Distinguish general travel advice from verified information about
+  destinations stored in the database.
+- Keep answers simple and conversational.
+
+Return a natural-language reply and structured recommendations.
+      `,
+      input: JSON.stringify({
+        conversation: history,
+        currentQuestion: message,
+        availableDestinations: places.map((place) => ({
+          id: place.id,
+          name: place.name,
+          description: place.description,
+          category: place.category,
+          district: place.district,
+          bestTime: place.bestTime,
+          activities: place.activities,
+          safetyTips: place.safetyTips,
+          travelInfo: place.travelInfo,
+        })),
+      }),
+      max_output_tokens: 800,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "travel_recommendation",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              reply: {
+                type: "string",
+              },
+              recommendations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    placeId: {
+                      type: "string",
+                    },
+                    reason: {
+                      type: "string",
+                    },
+                  },
+                  required: ["placeId", "reason"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["reply", "recommendations"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    if (!response.output_text) {
+      throw new Error("The AI returned an empty response.");
+    }
+
+    const aiResult = JSON.parse(response.output_text);
+
+    // Match AI recommendations to actual Supabase records.
+    // Never trust IDs that are not in the retrieved database list.
+    const placeMap = new Map(places.map((place) => [place.id, place]));
+
+    const recommendedPlaces = aiResult.recommendations
+      .filter((item: { placeId: string }) => placeMap.has(item.placeId))
+      .slice(0, 5)
+      .map((item: { placeId: string; reason: string }) => ({
+        ...placeMap.get(item.placeId)!,
+        matchReason: item.reason,
+      }));
+
     return NextResponse.json({
-      ok: true,
-      reply: localResult.reply,
-      places: localResult.places,
-      source: "local-engine",
+      reply: aiResult.reply,
+      places: recommendedPlaces,
     });
   } catch (error) {
-    console.error("AI recommendation route error:", error);
+    console.error("AI recommendation error:", error);
+
     return NextResponse.json(
-      { error: "Failed to generate recommendation" },
+      { error: "Unable to process your request. Please try again." },
       { status: 500 }
     );
   }
