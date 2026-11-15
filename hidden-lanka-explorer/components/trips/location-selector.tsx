@@ -176,7 +176,7 @@ export default function LocationSelector({
                   >
                     <span>{hub.name}</span>
                     <span
-                      className={`text-[11px] ${
+                      className={`text-[15px] ${
                         isSelected ? "text-[#f1cf88]" : "text-[#718078]"
                       }`}
                     >
