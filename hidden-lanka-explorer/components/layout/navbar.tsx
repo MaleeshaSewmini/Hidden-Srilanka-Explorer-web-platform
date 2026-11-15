@@ -64,10 +64,15 @@ export default function Navbar() {
             <Link href="/map" className="text-base hover:text-[black]">
               Map
             </Link>
-
-            <Link href="/dashboard/trips" className="text-base font-semibold text-[#123b26] hover:text-[black]">
-              Trips
-            </Link>
+{isSignedIn && (
+  <Link
+    href="/trips"
+    className="text-base font-semibold text-[#123b26] hover:text-black"
+  >
+    Trips
+  </Link>
+)}
+            
 
             <Link href="/community" className="text-base hover:text-[black]">
               Community
@@ -92,7 +97,8 @@ export default function Navbar() {
       Search
       </span>
         </Link>
-            <NotificationBell />
+           
+            {isSignedIn && <NotificationBell />}
             {isSignedIn ? (
              <Link
        href="/profile"
@@ -143,7 +149,8 @@ export default function Navbar() {
               >
                 Map
               </Link>
-
+       
+            { isSignedIn && (
               <Link
                 href="/dashboard/trips"
                 onClick={() => setOpen(false)}
@@ -151,7 +158,7 @@ export default function Navbar() {
               >
                 Trips Planner
               </Link>
-
+            )}
               <Link
                 href="/community"
                 onClick={() => setOpen(false)}

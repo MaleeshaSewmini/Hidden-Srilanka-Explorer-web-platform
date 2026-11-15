@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -44,28 +45,505 @@ import {
   Clock,
   Navigation,
   Bell,
-  CheckCircle2,
   AlertTriangle,
   ChevronRight,
   X,
   RefreshCw,
   Eye,
+  Pencil,
+  Map as MapIcon,
 } from "lucide-react";
+
+/* ==========================================================================
+   Design tokens
+   ink    #16181d   primary text
+   muted  #5b616b   secondary text
+   line   #e3e6ea   borders and dividers
+   page   #f5f6f7   page background
+   soft   #f1f2f4   hover and subtle fills
+   gold   #77bd96   the one accent (primary action, active item, progress)
+   ========================================================================== */
+
+const CARD = "bg-white rounded-xl border border-[#e3e6ea]";
+const BTN_PRIMARY =
+  "inline-flex items-center justify-center gap-2 bg-[#a77a2f] hover:bg-[#8f6824] text-white font-bold px-5 py-3 rounded-lg text-sm transition-colors";
+const BTN_SECONDARY =
+  "inline-flex items-center justify-center gap-2 bg-white border border-[#d3d7dd] hover:border-[#16181d] text-[#16181d] font-bold px-5 py-3 rounded-lg text-sm transition-colors";
+const ICON_BTN =
+  "p-2.5 text-[#5b616b] hover:text-[#16181d] hover:bg-[#f1f2f4] rounded-lg transition-colors";
+const SPINNER =
+  "animate-spin w-8 h-8 border-2 border-[#a77a2f] border-t-transparent rounded-full";
+
+/*
+  Scoped CSS:
+  1. Arial everywhere inside the planner (child components and modals included).
+  2. A larger type scale. Tailwind's text-xs / sm / base / lg / xl / 2xl / 3xl are
+     raised inside .tp-root, so the child components you did not edit get bigger too.
+  3. Safety net: remaps the old dark green and cream classes used inside child
+     components to the new neutral palette, until you edit those files directly.
+*/
+const GLOBAL_CSS = String.raw`
+.tp-root, .tp-root * { font-family: Arial, Helvetica, sans-serif; }
+.tp-root :focus-visible { outline: 3px solid #2fa783; outline-offset: 2px; }
+
+.tp-root .text-xs   { font-size: 14px; line-height: 20px; }
+.tp-root .text-sm   { font-size: 16px; line-height: 24px; }
+.tp-root .text-base { font-size: 18px; line-height: 28px; }
+.tp-root .text-lg   { font-size: 20px; line-height: 28px; }
+.tp-root .text-xl   { font-size: 24px; line-height: 32px; }
+.tp-root .text-2xl  { font-size: 28px; line-height: 36px; }
+.tp-root .text-3xl  { font-size: 34px; line-height: 42px; }
+
+.tp-root .bg-\[\#123b26\]            { background-color: #ecf3ef; }
+.tp-root .bg-\[\#0b2417\]            { background-color: #8f6824; }
+.tp-root .hover\:bg-\[\#0b2417\]:hover { background-color: #8f6824; }
+.tp-root .text-\[\#123b26\]          { color: #16181d; }
+.tp-root .text-\[\#123b26\]\/50,
+.tp-root .text-\[\#123b26\]\/60,
+.tp-root .text-\[\#123b26\]\/70      { color: #5b616b; }
+.tp-root .bg-\[\#f6f1e8\]            { background-color: white; }
+.tp-root .hover\:bg-\[\#f6f1e8\]:hover { background-color: #f1f2f4; }
+.tp-root .border-\[\#c99a43\]\/20    { border-color: #e3e6ea; }
+`;
 
 // TripMap uses Leaflet which requires browser window (ssr: false)
 const TripMap = dynamic(() => import("@/components/trips/trip-map"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-full bg-[#f6f1e8] rounded-xl border border-[#c99a43]/20">
-      <div className="text-center space-y-2">
-        <div className="animate-spin w-8 h-8 border-2 border-[#123b26] border-t-transparent rounded-full mx-auto" />
-        <p className="text-sm text-[#123b26]/60">Loading interactive map…</p>
+    <div className="flex items-center justify-center h-full bg-[#f1f2f4] rounded-xl border border-[#e3e6ea]">
+      <div className="text-center space-y-3">
+        <div className={`${SPINNER} mx-auto`} />
+        <p className="text-sm text-[#5b616b]">Loading map…</p>
       </div>
     </div>
   ),
 });
 
-type DashboardTab = "trips" | "discover" | "itinerary" | "budget" | "map" | "notifications";
+// Leaflet needs the browser window, so this is also client-only
+const CurrentLocationMap = dynamic(
+  () => import("@/components/trips/current-location-map"),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="flex items-center justify-center bg-[#f1f2f4] rounded-lg border border-[#e3e6ea]"
+        style={{ height: 340 }}
+      >
+        <div className={SPINNER} />
+      </div>
+    ),
+  }
+);
+
+type DashboardTab =
+  | "trips"
+  | "discover"
+  | "itinerary"
+  | "budget"
+  | "map"
+  | "notifications";
+
+const NAV_GROUPS: { label: string; items: { id: DashboardTab; label: string; icon: ReactNode }[] }[] = [
+  {
+    label: "Plan",
+    items: [
+      { id: "trips", label: "My trips", icon: <Calendar className="w-5 h-5" /> },
+      { id: "discover", label: "Discover places", icon: <MapPin className="w-5 h-5" /> },
+      { id: "itinerary", label: "Itinerary", icon: <Route className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: "Review",
+    items: [
+      { id: "budget", label: "Budget", icon: <Wallet className="w-5 h-5" /> },
+      { id: "map", label: "Route map", icon: <MapIcon className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: "Stay informed",
+    items: [{ id: "notifications", label: "Reminders", icon: <Bell className="w-5 h-5" /> }],
+  },
+];
+
+/* ─────────────────────────── Presentational helpers ─────────────────────────── */
+
+function SectionTitle({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <h2 className="text-lg font-bold text-[#16181d] mb-4 flex items-center gap-2.5">
+      <span className="text-[#a77a2f]">{icon}</span>
+      {children}
+    </h2>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  text,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  text: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className={`${CARD} flex flex-col items-center justify-center text-center py-20 px-6`}>
+      <div className="text-[#c4c9d0] mb-5">{icon}</div>
+      <h3 className="text-xl font-bold text-[#16181d] mb-2">{title}</h3>
+      <p className="text-base text-[#5b616b] mb-7 max-w-md">{text}</p>
+      {children && <div className="flex flex-wrap justify-center gap-3">{children}</div>}
+    </div>
+  );
+}
+
+function StatTile({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className={`${CARD} p-5`}>
+      <div className="flex items-center gap-2 text-sm text-[#5b616b] mb-2">
+        <span className="text-[#a77a2f]">{icon}</span>
+        {label}
+      </div>
+      <div className="text-2xl font-bold text-[#16181d]">{value}</div>
+    </div>
+  );
+}
+
+function MiniStat({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-sm text-[#16181d]">
+      <span className="text-[#a77a2f]">{icon}</span>
+      {children}
+    </span>
+  );
+}
+
+/* ─────────────────────────── Trip edit modal ─────────────────────────── */
+
+const EDIT_CURRENCIES = ["LKR", "USD", "EUR", "GBP", "AUD", "INR"];
+
+const EDIT_STATUSES: { value: Trip["status"]; label: string }[] = [
+  { value: "planning", label: "Planning" },
+  { value: "ongoing", label: "Ongoing" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const EDIT_INPUT =
+  "w-full border border-[#d3d7dd] rounded-lg px-4 py-3 text-base bg-white text-[#16181d] focus:border-[#a77a2f] focus:outline-none";
+const EDIT_LABEL = "block text-sm font-bold text-[#16181d] mb-2";
+const EDIT_ERROR = "text-sm text-red-700 mt-2";
+
+function TripEditModal({
+  trip,
+  saving,
+  onClose,
+  onSave,
+}: {
+  trip: Trip;
+  saving: boolean;
+  onClose: () => void;
+  /** Resolves true when the trip was saved, false when saving failed. */
+  onSave: (updated: Trip) => Promise<boolean>;
+}) {
+  const [title, setTitle] = useState(trip.title);
+  const [startName, setStartName] = useState(trip.start_location_name ?? "");
+  const [days, setDays] = useState(String(trip.duration_days));
+  const [travellers, setTravellers] = useState(String(trip.traveler_count));
+  const [budget, setBudget] = useState(String(trip.total_budget));
+  const [currency, setCurrency] = useState(trip.budget_currency);
+  const [status, setStatus] = useState<Trip["status"]>(trip.status);
+  const [submitted, setSubmitted] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  // Focus the first field and close on Escape
+  useEffect(() => {
+    titleRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, saving]);
+
+  const daysNum = Number(days);
+  const travellersNum = Number(travellers);
+  const budgetNum = Number(budget);
+
+  const errors = useMemo(() => {
+    const e: Record<string, string> = {};
+    if (!title.trim()) e.title = "Enter a trip name.";
+    if (!startName.trim()) e.startName = "Enter where the trip starts.";
+    if (!Number.isInteger(daysNum) || daysNum < 1 || daysNum > 60)
+      e.days = "Enter a whole number of days from 1 to 60.";
+    if (!Number.isInteger(travellersNum) || travellersNum < 1 || travellersNum > 50)
+      e.travellers = "Enter a whole number of travellers from 1 to 50.";
+    if (budget.trim() === "" || !Number.isFinite(budgetNum) || budgetNum < 0)
+      e.budget = "Enter a budget of 0 or more.";
+    return e;
+  }, [title, startName, daysNum, travellersNum, budget, budgetNum]);
+
+  const hasErrors = Object.keys(errors).length > 0;
+
+  const dirty =
+    title.trim() !== trip.title ||
+    startName.trim() !== (trip.start_location_name ?? "") ||
+    daysNum !== trip.duration_days ||
+    travellersNum !== trip.traveler_count ||
+    budgetNum !== trip.total_budget ||
+    currency !== trip.budget_currency ||
+    status !== trip.status;
+
+  // Stops that sit on days beyond the new length will move to the last day
+  const movedStops = useMemo(() => {
+    if (!Number.isInteger(daysNum) || daysNum < 1) return 0;
+    return (trip.destinations ?? []).filter((d) => d.day_number > daysNum).length;
+  }, [trip.destinations, daysNum]);
+
+  const currencyOptions = EDIT_CURRENCIES.includes(trip.budget_currency)
+    ? EDIT_CURRENCIES
+    : [trip.budget_currency, ...EDIT_CURRENCIES];
+
+  const handleSubmit = async () => {
+    setSubmitted(true);
+    setSaveFailed(false);
+    if (hasErrors) return;
+
+    const updated: Trip = {
+      ...trip,
+      title: title.trim(),
+      start_location_name: startName.trim(),
+      duration_days: daysNum,
+      traveler_count: travellersNum,
+      total_budget: budgetNum,
+      budget_currency: currency,
+      status,
+      destinations: trip.destinations
+        ? trip.destinations.map((d) =>
+            d.day_number > daysNum ? { ...d, day_number: daysNum } : d
+          )
+        : trip.destinations,
+    };
+
+    const ok = await onSave(updated);
+    if (ok) onClose();
+    else setSaveFailed(true);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-trip-title"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !saving) onClose();
+      }}
+    >
+      <div className="bg-white rounded-xl border border-[#e3e6ea] shadow-xl w-full max-w-xl max-h-[92vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 px-7 pt-7 pb-5 border-b border-[#e3e6ea]">
+          <div>
+            <h3 id="edit-trip-title" className="text-xl font-bold text-[#16181d]">
+              Edit trip
+            </h3>
+            <p className="text-base text-[#5b616b] mt-1">
+              Change the details below, then save.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            aria-label="Close"
+            className="p-2 -mr-2 text-[#5b616b] hover:text-[#16181d] hover:bg-[#f1f2f4] rounded-lg transition-colors disabled:opacity-50"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form
+          className="px-7 py-6 space-y-5 overflow-y-auto"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          noValidate
+        >
+          <div>
+            <label htmlFor="trip-title" className={EDIT_LABEL}>
+              Trip name
+            </label>
+            <input
+              id="trip-title"
+              ref={titleRef}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={EDIT_INPUT}
+              maxLength={120}
+            />
+            {submitted && errors.title && <p className={EDIT_ERROR}>{errors.title}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="trip-start" className={EDIT_LABEL}>
+              Starting point name
+            </label>
+            <input
+              id="trip-start"
+              value={startName}
+              onChange={(e) => setStartName(e.target.value)}
+              className={EDIT_INPUT}
+              maxLength={120}
+            />
+            {submitted && errors.startName && <p className={EDIT_ERROR}>{errors.startName}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label htmlFor="trip-days" className={EDIT_LABEL}>
+                Days
+              </label>
+              <input
+                id="trip-days"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={60}
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                className={EDIT_INPUT}
+              />
+              {submitted && errors.days && <p className={EDIT_ERROR}>{errors.days}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="trip-travellers" className={EDIT_LABEL}>
+                Travellers
+              </label>
+              <input
+                id="trip-travellers"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={50}
+                value={travellers}
+                onChange={(e) => setTravellers(e.target.value)}
+                className={EDIT_INPUT}
+              />
+              {submitted && errors.travellers && (
+                <p className={EDIT_ERROR}>{errors.travellers}</p>
+              )}
+            </div>
+          </div>
+
+          {movedStops > 0 && (
+            <div className="flex items-start gap-3 bg-white border border-[#e3e6ea] border-l-4 border-l-[#a77a2f] rounded-lg px-4 py-3 text-sm text-[#16181d]">
+              <AlertTriangle className="w-5 h-5 text-[#a77a2f] shrink-0 mt-0.5" />
+              <span>
+                {movedStops} stop{movedStops !== 1 ? "s" : ""} planned after day {daysNum} will
+                move to day {daysNum}.
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-5">
+            <div>
+              <label htmlFor="trip-budget" className={EDIT_LABEL}>
+                Total budget
+              </label>
+              <input
+                id="trip-budget"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="any"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                className={EDIT_INPUT}
+              />
+              {submitted && errors.budget && <p className={EDIT_ERROR}>{errors.budget}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="trip-currency" className={EDIT_LABEL}>
+                Currency
+              </label>
+              <select
+                id="trip-currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className={EDIT_INPUT}
+              >
+                {currencyOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="trip-status" className={EDIT_LABEL}>
+              Status
+            </label>
+            <select
+              id="trip-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as Trip["status"])}
+              className={EDIT_INPUT}
+            >
+              {EDIT_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {saveFailed && (
+            <p className="text-sm text-red-700" role="alert">
+              Your changes couldn&apos;t be saved. Check your connection and try again.
+            </p>
+          )}
+        </form>
+
+        {/* Footer */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 px-7 py-5 border-t border-[#e3e6ea]">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="inline-flex items-center justify-center bg-white border border-[#d3d7dd] hover:border-[#16181d] text-[#16181d] font-bold px-5 py-3 rounded-lg text-sm transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving || !dirty}
+            className="inline-flex items-center justify-center gap-2 bg-[#a77a2f] hover:bg-[#8f6824] text-white font-bold px-5 py-3 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving && <RefreshCw className="w-5 h-5 animate-spin" />}
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TripPlannerView() {
   // ─────────────────────────── State ───────────────────────────
@@ -82,6 +560,7 @@ export default function TripPlannerView() {
   const [showWizard, setShowWizard] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [error, setError] = useState<string | null>(null);
   const routeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,7 +597,7 @@ export default function TripPlannerView() {
         setError("Failed to load trips.");
       })
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ─────────────────────────── Derived destinations as PlaceRecord[] ───────────────────────────
@@ -160,43 +639,52 @@ export default function TripPlannerView() {
   }, [activeTrip, tripDestinationPlaces, startLocation]);
 
   // ─────────────────────────── Trip CRUD handlers ───────────────────────────
-  const updateTrip = useCallback(
-    async (updated: Trip) => {
-      setSaving(true);
-      try {
-        const saved = await saveTrip(updated);
-        setActiveTrip(saved);
-        setUserTrips((prev) =>
-          prev.map((t) => (t.id === saved.id ? saved : t))
-        );
-      } catch (e) {
-        console.error("Failed to save trip:", e);
-        setError("Failed to save trip changes.");
-      } finally {
-        setSaving(false);
-      }
-    },
-    []
-  );
+  const updateTrip = useCallback(async (updated: Trip) => {
+    setSaving(true);
+    try {
+      const saved = await saveTrip(updated);
+      setActiveTrip(saved);
+      setUserTrips((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
+    } catch (e) {
+      console.error("Failed to save trip:", e);
+      setError("Failed to save trip changes.");
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
-  const handleTripCreated = useCallback(
-    async (trip: Trip) => {
-      setSaving(true);
-      try {
-        const saved = await saveTrip(trip);
-        setUserTrips((prev) => [saved, ...prev]);
-        setActiveTrip(saved);
-        setShowWizard(false);
-        setActiveTab("itinerary");
-      } catch (e) {
-        console.error("Failed to create trip:", e);
-        setError("Failed to save new trip.");
-      } finally {
-        setSaving(false);
-      }
-    },
-    []
-  );
+  // Used by the edit modal. Same as updateTrip, but reports success so the
+  // modal can stay open and show an error when saving fails.
+  const saveTripEdits = useCallback(async (updated: Trip): Promise<boolean> => {
+    setSaving(true);
+    try {
+      const saved = await saveTrip(updated);
+      setActiveTrip(saved);
+      setUserTrips((prev) => prev.map((t) => (t.id === saved.id ? saved : t)));
+      return true;
+    } catch (e) {
+      console.error("Failed to save trip edits:", e);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const handleTripCreated = useCallback(async (trip: Trip) => {
+    setSaving(true);
+    try {
+      const saved = await saveTrip(trip);
+      setUserTrips((prev) => [saved, ...prev]);
+      setActiveTrip(saved);
+      setShowWizard(false);
+      setActiveTab("itinerary");
+    } catch (e) {
+      console.error("Failed to create trip:", e);
+      setError("Failed to save new trip.");
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
   const handleDeleteTrip = useCallback(
     async (tripId: string) => {
@@ -216,22 +704,19 @@ export default function TripPlannerView() {
     [activeTrip, userTrips]
   );
 
-  const handleDuplicateTrip = useCallback(
-    async (trip: Trip) => {
-      setSaving(true);
-      try {
-        const dup = await duplicateTrip(trip);
-        setUserTrips((prev) => [dup, ...prev]);
-        setActiveTrip(dup);
-      } catch (e) {
-        console.error("Failed to duplicate trip:", e);
-        setError("Failed to duplicate trip.");
-      } finally {
-        setSaving(false);
-      }
-    },
-    []
-  );
+  const handleDuplicateTrip = useCallback(async (trip: Trip) => {
+    setSaving(true);
+    try {
+      const dup = await duplicateTrip(trip);
+      setUserTrips((prev) => [dup, ...prev]);
+      setActiveTrip(dup);
+    } catch (e) {
+      console.error("Failed to duplicate trip:", e);
+      setError("Failed to duplicate trip.");
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
   // ─────────────────────────── Add / Remove destination ───────────────────────────
   const handleAddPlace = useCallback(
@@ -321,7 +806,11 @@ export default function TripPlannerView() {
         ...activeTrip,
         destinations: (activeTrip.destinations ?? []).map((d) =>
           d.id === dest.id
-            ? { ...d, is_visited: dest.is_visited, visited_at: dest.is_visited ? new Date().toISOString() : null }
+            ? {
+                ...d,
+                is_visited: dest.is_visited,
+                visited_at: dest.is_visited ? new Date().toISOString() : null,
+              }
             : d
         ),
       };
@@ -361,549 +850,671 @@ export default function TripPlannerView() {
     });
   }, [activeTrip, routePlan, tripDestinationPlaces]);
 
-  // ─────────────────────────── Status badge helper ───────────────────────────
+  // ─────────────────────────── Helpers ───────────────────────────
   const statusBadge = (status: Trip["status"]) => {
-    const styles: Record<Trip["status"], string> = {
-      planning: "bg-blue-100 text-blue-700",
-      ongoing: "bg-green-100 text-green-700",
-      completed: "bg-gray-100 text-gray-600",
-      cancelled: "bg-red-100 text-red-700",
+    const dot: Record<Trip["status"], string> = {
+      planning: "bg-sky-500",
+      ongoing: "bg-emerald-500",
+      completed: "bg-[#b3b9c2]",
+      cancelled: "bg-red-500",
     };
     return (
-      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${styles[status]}`}>
+      <span className="inline-flex items-center gap-2 text-sm font-bold text-[#16181d] capitalize">
+        <span className={`w-2.5 h-2.5 rounded-full ${dot[status]}`} />
         {status}
       </span>
     );
   };
 
-  // ─────────────────────────── Navigation tabs ───────────────────────────
-  const tabs: { id: DashboardTab; label: string; icon: React.ReactNode }[] = [
-    { id: "trips", label: "My Trips", icon: <Calendar className="w-4 h-4" /> },
-    { id: "discover", label: "Discover Places", icon: <MapPin className="w-4 h-4" /> },
-    { id: "itinerary", label: "Itinerary", icon: <Route className="w-4 h-4" /> },
-    { id: "budget", label: "Budget Calculator", icon: <Wallet className="w-4 h-4" /> },
-    { id: "map", label: "Interactive Route Map", icon: <Navigation className="w-4 h-4" /> },
-    { id: "notifications", label: "Reminders & Alerts", icon: <Bell className="w-4 h-4" /> },
-  ];
+  const formatDuration = (minutes: number) =>
+    `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`;
+
+  const visitedCount = (trip: Trip) =>
+    trip.destinations?.filter((d) => d.is_visited).length ?? 0;
+
+  const openTrip = (trip: Trip, tab: DashboardTab = "itinerary") => {
+    setActiveTrip(trip);
+    setActiveTab(tab);
+  };
+
+  const pageMeta: Record<DashboardTab, { title: string; text: string }> = {
+    trips: {
+      title: "My trips",
+      text: "All your trips in one place. Open a trip to plan its days.",
+    },
+    discover: {
+      title: "Discover places",
+      text: "Find places near your starting point and add them to your trip.",
+    },
+    itinerary: {
+      title: "Itinerary",
+      text: activeTrip
+        ? `Plan each day of ${activeTrip.title}.`
+        : "Plan each day of your trip.",
+    },
+    budget: {
+      title: "Budget",
+      text: "Track your expenses against your total budget.",
+    },
+    map: {
+      title: "Route map",
+      text: "See the road route between your stops.",
+    },
+    notifications: {
+      title: "Reminders",
+      text: "Alerts and reminders for your upcoming trips.",
+    },
+  };
+
+  // Use the visitor's real position as the trip's starting point.
+  // Spreading keeps any other fields your LocationPoint type has.
+  const handleUseCurrentLocation = (latitude: number, longitude: number) => {
+    setStartLocation({
+      ...startLocation,
+      name: "My current location",
+      latitude,
+      longitude,
+    } as LocationPoint);
+  };
+
+  // My trips shows the current-location map here. Discover has its own distance
+  // map further down, so it asks for the card without a map (one map per page).
+  const renderStartLocationCard = (showMap: boolean) => (
+    <div className={`${CARD} p-6`}>
+      <SectionTitle icon={<Navigation className="w-5 h-5" />}>
+        Your starting location
+      </SectionTitle>
+      <LocationSelector
+        currentLocation={startLocation}
+        onLocationChange={setStartLocation}
+      />
+
+      {showMap && (
+        <div className="mt-6 pt-6 border-t border-[#e3e6ea]">
+          <CurrentLocationMap
+            startLocation={startLocation}
+            onUseAsStart={handleUseCurrentLocation}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const TRIP_GRID =
+    "lg:grid-cols-[minmax(0,1fr)_60px_120px_120px_100px_260px]";
 
   return (
-    <div className="min-h-screen bg-[#f6f1e8]">
-      {/* Header */}
-      <div className="bg-[#123b26] text-white px-4 sm:px-6 py-6 border-b border-[#c99a43]/30">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#f6f1e8]">
-              Personalized Trip Planner
-            </h1>
-            <p className="text-[#f1cf88] text-sm mt-1">
-              Explore Hidden Sri Lanka with custom route planning, live distances, and budgets
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {saving && (
-              <span className="text-[#f1cf88] text-sm flex items-center gap-1.5">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…
-              </span>
-            )}
+    <div className="tp-root min-h-screen bg-[#f5f6f7] text-[#16181d]">
+      <style>{GLOBAL_CSS}</style>
+
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-10">
+        {/* ───────────── Sidebar ───────────── */}
+        <aside className="flex flex-col gap-6 mb-8 lg:mb-0 lg:sticky lg:top-6 lg:self-start">
+          <div className="order-1">
+            <h1 className="text-2xl font-bold tracking-tight">Trip Planner</h1>
             <button
               onClick={() => setShowWizard(true)}
-              className="flex items-center gap-2 bg-[#c99a43] hover:bg-[#f1cf88] text-[#0b2417] font-semibold px-4 py-2 rounded-lg text-sm transition-colors shadow-sm"
+              className={`${BTN_PRIMARY} w-full mt-4`}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-5 h-5" />
               New Trip
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Error alert */}
-      {error && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4">
-          <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            <span className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              {error}
-            </span>
-            <button onClick={() => setError(null)}>
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {/* Tab navigation */}
-        <div className="flex overflow-x-auto gap-1 bg-white rounded-xl p-1.5 shadow-sm border border-[#c99a43]/20 mb-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                activeTab === tab.id
-                  ? "bg-[#123b26] text-[#f6f1e8] shadow"
-                  : "text-[#123b26]/70 hover:bg-[#f6f1e8] hover:text-[#123b26]"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── MY TRIPS TAB ── */}
-        {activeTab === "trips" && (
-          <div className="space-y-6">
-            {/* Starting Location selector */}
-            <div className="bg-white rounded-xl border border-[#c99a43]/20 shadow-sm p-5">
-              <h2 className="text-base font-semibold text-[#123b26] mb-3 flex items-center gap-2">
-                <Navigation className="w-4 h-4 text-[#c99a43]" />
-                Your Starting Location
-              </h2>
-              <LocationSelector
-                currentLocation={startLocation}
-                onLocationChange={setStartLocation}
-              />
-            </div>
-
-            {/* User Trips */}
-            {loading ? (
-              <div className="flex justify-center py-16">
-                <div className="animate-spin w-8 h-8 border-2 border-[#123b26] border-t-transparent rounded-full" />
-              </div>
-            ) : userTrips.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-[#c99a43]/20 shadow-sm">
-                <MapPin className="w-14 h-14 text-[#c99a43]/40 mb-4" />
-                <h3 className="text-lg font-semibold text-[#123b26] mb-2">No trips created yet</h3>
-                <p className="text-[#123b26]/60 text-sm mb-6 max-w-sm">
-                  Plan your adventure using real Sri Lanka destinations, automatic distance calculations, and custom budgets.
-                </p>
-                <button
-                  onClick={() => setShowWizard(true)}
-                  className="flex items-center gap-2 bg-[#123b26] text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-[#0b2417] transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Your First Trip
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {userTrips.map((trip) => (
-                  <div
-                    key={trip.id}
-                    onClick={() => { setActiveTrip(trip); setActiveTab("itinerary"); }}
-                    className={`bg-white rounded-xl border shadow-sm p-5 cursor-pointer hover:shadow-md transition-all ${
-                      activeTrip?.id === trip.id
-                        ? "border-[#c99a43] ring-2 ring-[#c99a43]/30"
-                        : "border-[#c99a43]/20 hover:border-[#c99a43]/50"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-[#123b26] truncate pr-2">{trip.title}</h3>
-                        <p className="text-xs text-[#123b26]/50 mt-0.5 truncate">{trip.start_location_name}</p>
-                      </div>
-                      {statusBadge(trip.status)}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs text-[#123b26]/60 mb-4">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {trip.duration_days} day{trip.duration_days !== 1 ? "s" : ""}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5" />
-                        {trip.traveler_count} traveller{trip.traveler_count !== 1 ? "s" : ""}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5" />
-                        {trip.destinations?.length ?? 0} stops
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Wallet className="w-3.5 h-3.5" />
-                        {trip.budget_currency} {trip.total_budget.toLocaleString()}
-                      </span>
-                    </div>
-
-                    {/* Visited progress */}
-                    {(trip.destinations?.length ?? 0) > 0 && (
-                      <div className="mb-4">
-                        <div className="flex justify-between text-xs text-[#123b26]/50 mb-1">
-                          <span>Progress</span>
-                          <span>
-                            {trip.destinations?.filter((d) => d.is_visited).length ?? 0} /{" "}
-                            {trip.destinations?.length ?? 0} visited
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-[#f6f1e8] rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[#c99a43] rounded-full transition-all"
-                            style={{
-                              width: `${
-                                ((trip.destinations?.filter((d) => d.is_visited).length ?? 0) /
-                                  (trip.destinations?.length ?? 1)) *
-                                100
-                              }%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div
-                      className="flex gap-1.5"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        title="View itinerary"
-                        onClick={() => { setActiveTrip(trip); setActiveTab("itinerary"); }}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium text-[#123b26] bg-[#f6f1e8] hover:bg-[#c99a43]/20 rounded-lg transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> View
-                      </button>
-                      <button
-                        title="Duplicate trip"
-                        onClick={() => handleDuplicateTrip(trip)}
-                        className="p-1.5 text-[#123b26]/60 hover:text-[#123b26] hover:bg-[#f6f1e8] rounded-lg transition-colors"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        title="Share trip"
-                        onClick={() => { setActiveTrip(trip); setShowShareModal(true); }}
-                        className="p-1.5 text-[#123b26]/60 hover:text-[#123b26] hover:bg-[#f6f1e8] rounded-lg transition-colors"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        title="Print itinerary"
-                        onClick={() => { setActiveTrip(trip); window.print(); }}
-                        className="p-1.5 text-[#123b26]/60 hover:text-[#123b26] hover:bg-[#f6f1e8] rounded-lg transition-colors"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        title="Delete trip"
-                        onClick={() => setShowDeleteConfirm(trip.id)}
-                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Add new trip card */}
-                <button
-                  onClick={() => setShowWizard(true)}
-                  className="border-2 border-dashed border-[#c99a43]/30 rounded-xl p-5 flex flex-col items-center justify-center gap-3 text-[#123b26]/50 hover:border-[#c99a43] hover:text-[#123b26] hover:bg-[#c99a43]/5 transition-all min-h-[200px]"
-                >
-                  <Plus className="w-8 h-8" />
-                  <span className="text-sm font-medium">Plan a new trip</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── DISCOVER TAB ── */}
-        {activeTab === "discover" && (
-          <div className="space-y-5">
-            <div className="bg-white rounded-xl border border-[#c99a43]/20 shadow-sm p-5">
-              <h2 className="text-base font-semibold text-[#123b26] mb-3 flex items-center gap-2">
-                <Navigation className="w-4 h-4 text-[#c99a43]" />
-                Your Starting Location
-              </h2>
-              <LocationSelector
-                currentLocation={startLocation}
-                onLocationChange={setStartLocation}
-              />
-            </div>
-
-            {!activeTrip && (
-              <div className="bg-[#c99a43]/10 border border-[#c99a43]/30 rounded-xl px-5 py-4 flex items-center gap-3 text-sm text-[#123b26]">
-                <AlertTriangle className="w-5 h-5 text-[#c99a43] shrink-0" />
-                <span>
-                  Select or create a trip first to add destinations to it.{" "}
-                  <button
-                    onClick={() => setShowWizard(true)}
-                    className="underline font-semibold"
-                  >
-                    Create a trip
-                  </button>
-                </span>
-              </div>
-            )}
-
-            {placesLoading ? (
-              <div className="flex justify-center py-16">
-                <div className="animate-spin w-8 h-8 border-2 border-[#123b26] border-t-transparent rounded-full" />
-              </div>
-            ) : (
-              <NearbyPlacesDiscovery
-                places={allPlaces}
-                startLocation={startLocation}
-                tripPlaceIds={activeTripDestIds}
-                onAddPlace={handleAddPlace}
-                onRemovePlace={handleRemovePlace}
-              />
-            )}
-          </div>
-        )}
-
-        {/* ── ITINERARY TAB ── */}
-        {activeTab === "itinerary" && (
-          <div className="space-y-5">
-            {!activeTrip ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-[#c99a43]/20 shadow-sm text-center">
-                <Route className="w-12 h-12 text-[#c99a43]/40 mb-3" />
-                <h3 className="text-base font-semibold text-[#123b26] mb-2">No trip selected</h3>
-                <p className="text-sm text-[#123b26]/60 mb-5">
-                  Select a trip from My Trips or create a new one to manage its daily itinerary.
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setActiveTab("trips")}
-                    className="flex items-center gap-2 border border-[#123b26] text-[#123b26] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#f6f1e8] transition-colors"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                    View Trips
-                  </button>
-                  <button
-                    onClick={() => setShowWizard(true)}
-                    className="flex items-center gap-2 bg-[#123b26] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#0b2417] transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New Trip
-                  </button>
-                </div>
-              </div>
-            ) : (
+          {/* Current trip, always visible */}
+          <div className={`${CARD} p-5 order-3 lg:order-2`}>
+            <p className="text-sm text-[#5b616b] mb-3">Current trip</p>
+            {activeTrip ? (
               <>
-                {/* Active trip summary bar */}
-                <div className="bg-white rounded-xl border border-[#c99a43]/20 shadow-sm p-4 flex flex-wrap items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h2 className="font-bold text-[#123b26] truncate">{activeTrip.title}</h2>
-                    <p className="text-xs text-[#123b26]/50 truncate">{activeTrip.start_location_name}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-sm text-[#123b26]/70">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" /> {activeTrip.duration_days}d
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="w-3.5 h-3.5" /> {activeTrip.traveler_count}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" /> {activeTrip.destinations?.length ?? 0} stops
-                    </span>
-                    {routeLoading ? (
-                      <span className="flex items-center gap-1 text-[#c99a43]">
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Routing…
-                      </span>
-                    ) : routePlan ? (
-                      <>
-                        <span className="flex items-center gap-1">
-                          <Route className="w-3.5 h-3.5" /> {routePlan.totalDistanceKm.toFixed(1)} km
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />{" "}
-                          {Math.round(routePlan.totalDurationMinutes / 60)}h{" "}
-                          {Math.round(routePlan.totalDurationMinutes % 60)}m
-                        </span>
-                      </>
-                    ) : null}
-                  </div>
-                  {statusBadge(activeTrip.status)}
+                {userTrips.length > 1 ? (
+                  <select
+                    value={activeTrip.id}
+                    onChange={(e) => {
+                      const next = userTrips.find((t) => t.id === e.target.value);
+                      if (next) setActiveTrip(next);
+                    }}
+                    className="w-full border border-[#d3d7dd] rounded-lg px-3 py-2.5 text-base font-bold bg-white text-[#16181d] mb-4"
+                    aria-label="Choose current trip"
+                  >
+                    {userTrips.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.title}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-base font-bold mb-4 break-words">{activeTrip.title}</p>
+                )}
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-3 pb-4 border-b border-[#e3e6ea]">
+                  <MiniStat icon={<Calendar className="w-4 h-4" />}>
+                    {activeTrip.duration_days} days
+                  </MiniStat>
+                  <MiniStat icon={<Users className="w-4 h-4" />}>
+                    {activeTrip.traveler_count}
+                  </MiniStat>
+                  <MiniStat icon={<MapPin className="w-4 h-4" />}>
+                    {activeTrip.destinations?.length ?? 0} stops
+                  </MiniStat>
+                  <MiniStat icon={<Wallet className="w-4 h-4" />}>
+                    {activeTrip.budget_currency} {activeTrip.total_budget.toLocaleString()}
+                  </MiniStat>
                 </div>
 
-                <ItineraryDayView
-                  destinations={activeTrip.destinations ?? []}
-                  allAvailablePlaces={allPlaces}
-                  durationDays={activeTrip.duration_days}
-                  onUpdateDestinations={(destinations) =>
-                    updateTrip({ ...activeTrip, destinations })
-                  }
-                  onAddDestination={handleAddDestinationFromItinerary}
-                  onMarkVisited={handleMarkVisited}
-                />
-
-                {/* Quick actions */}
-                <div className="flex flex-wrap gap-3">
+                <div className="pt-4 flex items-center justify-between gap-3">
+                  {statusBadge(activeTrip.status)}
                   <button
-                    onClick={() => setActiveTab("discover")}
-                    className="flex items-center gap-2 border border-[#123b26] text-[#123b26] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#f6f1e8] transition-colors"
+                    type="button"
+                    onClick={() => setEditingTrip(activeTrip)}
+                    className="inline-flex items-center gap-2 text-sm font-bold text-[#16181d] hover:text-[#a77a2f] transition-colors"
                   >
-                    <Plus className="w-4 h-4" />
-                    Add Destinations
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("map")}
-                    className="flex items-center gap-2 border border-[#c99a43] text-[#123b26] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#c99a43]/10 transition-colors"
-                  >
-                    <Navigation className="w-4 h-4" />
-                    View Map
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("budget")}
-                    className="flex items-center gap-2 border border-[#c99a43] text-[#123b26] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#c99a43]/10 transition-colors"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    Budget
-                  </button>
-                  <button
-                    onClick={() => setShowShareModal(true)}
-                    className="flex items-center gap-2 border border-[#c99a43] text-[#123b26] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#c99a43]/10 transition-colors"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    Share
-                  </button>
-                  <button
-                    onClick={() => window.print()}
-                    className="flex items-center gap-2 border border-[#c99a43] text-[#123b26] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#c99a43]/10 transition-colors"
-                  >
-                    <Printer className="w-4 h-4" />
-                    Print PDF
+                    <Pencil className="w-4 h-4" />
+                    Edit trip
                   </button>
                 </div>
               </>
+            ) : (
+              <p className="text-sm text-[#5b616b]">
+                No trip selected. Create one or open a trip from My trips.
+              </p>
             )}
           </div>
-        )}
 
-        {/* ── BUDGET TAB ── */}
-        {activeTab === "budget" && (
-          <div>
-            {!activeTrip ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-[#c99a43]/20 shadow-sm text-center">
-                <Wallet className="w-12 h-12 text-[#c99a43]/40 mb-3" />
-                <h3 className="text-base font-semibold text-[#123b26] mb-2">No trip selected</h3>
-                <p className="text-sm text-[#123b26]/60 mb-5">Select a trip to calculate and manage expenses.</p>
-                <button
-                  onClick={() => setActiveTab("trips")}
-                  className="flex items-center gap-2 border border-[#123b26] text-[#123b26] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#f6f1e8] transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4" /> Go to Trips
-                </button>
-              </div>
-            ) : (
-              <BudgetCalculator
-                expenses={activeTripExpenses}
-                totalBudget={activeTrip.total_budget}
-                currency={activeTrip.budget_currency}
-                onUpdateExpenses={handleUpdateExpenses}
-                onUpdateTotalBudget={handleUpdateTotalBudget}
-              />
-            )}
-          </div>
-        )}
-
-        {/* ── MAP TAB ── */}
-        {activeTab === "map" && (
-          <div className="space-y-4">
-            {!activeTrip ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-[#c99a43]/20 shadow-sm text-center">
-                <Navigation className="w-12 h-12 text-[#c99a43]/40 mb-3" />
-                <h3 className="text-base font-semibold text-[#123b26] mb-2">No trip selected</h3>
-                <p className="text-sm text-[#123b26]/60 mb-5">Select a trip to see its route on the map.</p>
-                <button
-                  onClick={() => setActiveTab("trips")}
-                  className="flex items-center gap-2 border border-[#123b26] text-[#123b26] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#f6f1e8] transition-colors"
-                >
-                  <ChevronRight className="w-4 h-4" /> Go to Trips
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Route statistics */}
-                {routePlan && (
-                  <div className="bg-white rounded-xl border border-[#c99a43]/20 shadow-sm p-4 flex flex-wrap gap-4 text-sm">
-                    <span className="flex items-center gap-1.5 text-[#123b26]">
-                      <Route className="w-4 h-4 text-[#c99a43]" />
-                      <strong>{routePlan.totalDistanceKm.toFixed(1)} km</strong> total distance
-                    </span>
-                    <span className="flex items-center gap-1.5 text-[#123b26]">
-                      <Clock className="w-4 h-4 text-[#c99a43]" />
-                      <strong>{Math.round(routePlan.totalDurationMinutes / 60)}h {Math.round(routePlan.totalDurationMinutes % 60)}m</strong> driving
-                    </span>
-                    <span className="flex items-center gap-1.5 text-[#123b26]">
-                      <MapPin className="w-4 h-4 text-[#c99a43]" />
-                      <strong>{tripDestinationPlaces.length}</strong> stop{tripDestinationPlaces.length !== 1 ? "s" : ""}
-                    </span>
-                    {routePlan.isOsrm ? (
-                      <span className="text-xs text-green-600 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> OSRM road routing
-                      </span>
-                    ) : (
-                      <span className="text-xs text-[#123b26]/50 flex items-center gap-1">
-                        <Navigation className="w-3.5 h-3.5" /> Haversine fallback estimate
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {tripDestinationPlaces.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-[#c99a43]/20 shadow-sm p-8 text-center">
-                    <MapPin className="w-10 h-10 text-[#c99a43]/40 mx-auto mb-3" />
-                    <p className="text-[#123b26]/60 text-sm">
-                      No destinations added yet.{" "}
+          {/* Navigation */}
+          <nav
+            aria-label="Trip planner sections"
+            className="order-2 lg:order-3 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible lg:gap-6"
+          >
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="flex lg:block gap-1 shrink-0 lg:shrink">
+                <p className="hidden lg:block text-sm font-bold text-[#5b616b] px-4 mb-2">
+                  {group.label}
+                </p>
+                <div className="flex lg:flex-col gap-1">
+                  {group.items.map((item) => {
+                    const active = activeTab === item.id;
+                    return (
                       <button
-                        onClick={() => setActiveTab("discover")}
-                        className="underline text-[#123b26] font-medium"
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        aria-current={active ? "page" : undefined}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm whitespace-nowrap text-left transition-colors ${
+                          active
+                            ? "bg-white border border-[#e3e6ea] font-bold text-[#16181d] shadow-[inset_4px_0_0_#a77a2f]"
+                            : "border border-transparent font-medium text-[#5b616b] hover:bg-white hover:text-[#16181d]"
+                        }`}
                       >
-                        Discover places
-                      </button>{" "}
-                      to add them to your itinerary.
-                    </p>
+                        <span className={active ? "text-[#a77a2f]" : ""}>{item.icon}</span>
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+        </aside>
+
+        {/* ───────────── Main content ───────────── */}
+        <main className="min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">{pageMeta[activeTab].title}</h2>
+              <p className="text-base text-[#5b616b] mt-2 max-w-2xl">
+                {pageMeta[activeTab].text}
+              </p>
+            </div>
+            {saving && (
+              <span className="text-sm text-[#5b616b] flex items-center gap-2 pt-2">
+                <RefreshCw className="w-4 h-4 animate-spin" /> Saving…
+              </span>
+            )}
+          </div>
+
+          {error && (
+            <div className="mb-6 flex items-center justify-between bg-white border border-red-200 text-red-700 px-5 py-4 rounded-xl text-sm">
+              <span className="flex items-center gap-2.5">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                {error}
+              </span>
+              <button onClick={() => setError(null)} aria-label="Dismiss error" className="p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
+          {/* ── MY TRIPS ── */}
+          {activeTab === "trips" && (
+            <div className="space-y-8">
+              {renderStartLocationCard(true)}
+
+              {loading ? (
+                <div className="flex justify-center py-16">
+                  <div className={SPINNER} />
+                </div>
+              ) : userTrips.length === 0 ? (
+                <EmptyState
+                  icon={<MapPin className="w-14 h-14" />}
+                  title="No trips yet"
+                  text="Pick destinations, see road distances between them and set a budget. Your first trip takes a minute."
+                >
+                  <button onClick={() => setShowWizard(true)} className={BTN_PRIMARY}>
+                    <Plus className="w-5 h-5" />
+                    Create your first trip
+                  </button>
+                </EmptyState>
+              ) : (
+                <section>
+                  <SectionTitle icon={<Calendar className="w-5 h-5" />}>
+                    {userTrips.length} trip{userTrips.length !== 1 ? "s" : ""}
+                  </SectionTitle>
+
+                  {/* Column headings (desktop) */}
+                  <div
+                    className={`hidden lg:grid ${TRIP_GRID} gap-4 px-6 pb-3 text-sm font-bold text-[#5b616b]`}
+                  >
+                    <span>Trip</span>
+                    <span>Stops</span>
+                    <span>Budget</span>
+                    <span>Progress</span>
+                    <span>Status</span>
+                    <span className="text-right">Actions</span>
                   </div>
-                ) : (
-                  <div className="rounded-xl overflow-hidden border border-[#c99a43]/20 shadow-sm" style={{ height: "520px" }}>
-                    <TripMap
-                      startLocation={startLocation}
-                      destinations={tripDestinationPlaces}
-                      routePlan={routePlan}
-                      height="520px"
-                      interactive={true}
+
+                  <div className="space-y-3">
+                    {userTrips.map((trip) => {
+                      const total = trip.destinations?.length ?? 0;
+                      const visited = visitedCount(trip);
+                      const isActive = activeTrip?.id === trip.id;
+                      return (
+                        <div
+                          key={trip.id}
+                          onClick={() => openTrip(trip)}
+                          className={`${CARD} border-l-4 ${
+                            isActive ? "border-l-[#a77a2f]" : "border-l-[#e3e6ea]"
+                          } px-6 py-5 cursor-pointer hover:border-[#c4c9d0] hover:border-l-[#a77a2f] transition-colors grid grid-cols-2 gap-4 ${TRIP_GRID} lg:items-center`}
+                        >
+                          {/* Trip */}
+                          <div className="col-span-2 lg:col-span-1 min-w-0">
+                            <h3 className="text-base font-bold truncate">{trip.title}</h3>
+                            <p className="text-sm text-[#5b616b] mt-1 truncate">
+                              From {trip.start_location_name}
+                            </p>
+                            <p className="text-sm text-[#5b616b] mt-0.5">
+                              {trip.duration_days} day{trip.duration_days !== 1 ? "s" : ""},{" "}
+                              {trip.traveler_count} traveller
+                              {trip.traveler_count !== 1 ? "s" : ""}
+                            </p>
+                          </div>
+
+                          {/* Stops */}
+                          <div className="text-base font-bold">
+                            <span className="lg:hidden text-sm font-normal text-[#5b616b]">
+                              Stops:{" "}
+                            </span>
+                            {total}
+                          </div>
+
+                          {/* Budget */}
+                          <div className="text-base font-bold">
+                            <span className="lg:hidden text-sm font-normal text-[#5b616b]">
+                              Budget:{" "}
+                            </span>
+                            {trip.budget_currency} {trip.total_budget.toLocaleString()}
+                          </div>
+
+                          {/* Progress */}
+                          <div className="col-span-2 lg:col-span-1">
+                            {total > 0 ? (
+                              <>
+                                <div className="h-1.5 bg-[#e9ebee] rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-[#a77a2f] rounded-full transition-all"
+                                    style={{ width: `${(visited / total) * 100}%` }}
+                                  />
+                                </div>
+                                <p className="text-sm text-[#5b616b] mt-2">
+                                  {visited} of {total} visited
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-sm text-[#5b616b]">No stops yet</p>
+                            )}
+                          </div>
+
+                          {/* Status */}
+                          <div>{statusBadge(trip.status)}</div>
+
+                          {/* Actions */}
+                          <div
+                            className="col-span-2 lg:col-span-1 flex items-center gap-1 lg:justify-end"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              title="Edit trip"
+                              aria-label="Edit trip"
+                              onClick={() => setEditingTrip(trip)}
+                              className={ICON_BTN}
+                            >
+                              <Pencil className="w-5 h-5" />
+                            </button>
+                            <button
+                              title="Open itinerary"
+                              aria-label="Open itinerary"
+                              onClick={() => openTrip(trip)}
+                              className={ICON_BTN}
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                            <button
+                              title="Duplicate trip"
+                              aria-label="Duplicate trip"
+                              onClick={() => handleDuplicateTrip(trip)}
+                              className={ICON_BTN}
+                            >
+                              <Copy className="w-5 h-5" />
+                            </button>
+                            <button
+                              title="Share trip"
+                              aria-label="Share trip"
+                              onClick={() => {
+                                setActiveTrip(trip);
+                                setShowShareModal(true);
+                              }}
+                              className={ICON_BTN}
+                            >
+                              <Share2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              title="Print itinerary"
+                              aria-label="Print itinerary"
+                              onClick={() => {
+                                setActiveTrip(trip);
+                                window.print();
+                              }}
+                              className={ICON_BTN}
+                            >
+                              <Printer className="w-5 h-5" />
+                            </button>
+                            <button
+                              title="Delete trip"
+                              aria-label="Delete trip"
+                              onClick={() => setShowDeleteConfirm(trip.id)}
+                              className="p-2.5 text-[#5b616b] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+
+          {/* ── DISCOVER ── */}
+          {activeTab === "discover" && (
+            <div className="space-y-6">
+              {renderStartLocationCard(false)}
+
+              {!activeTrip && (
+                <div className="bg-white border border-[#e3e6ea] border-l-4 border-l-[#a77a2f] rounded-xl px-6 py-5 flex items-center gap-3 text-base">
+                  <AlertTriangle className="w-6 h-6 text-[#a77a2f] shrink-0" />
+                  <span>
+                    Select or create a trip to add destinations to it.{" "}
+                    <button
+                      onClick={() => setShowWizard(true)}
+                      className="underline font-bold"
+                    >
+                      Create a trip
+                    </button>
+                  </span>
+                </div>
+              )}
+
+              {placesLoading ? (
+                <div className="flex justify-center py-16">
+                  <div className={SPINNER} />
+                </div>
+              ) : (
+                <NearbyPlacesDiscovery
+                  places={allPlaces}
+                  startLocation={startLocation}
+                  tripPlaceIds={activeTripDestIds}
+                  onAddPlace={handleAddPlace}
+                  onRemovePlace={handleRemovePlace}
+                  onStartLocationChange={setStartLocation}
+                />
+              )}
+            </div>
+          )}
+
+          {/* ── ITINERARY ── */}
+          {activeTab === "itinerary" && (
+            <div className="space-y-6">
+              {!activeTrip ? (
+                <EmptyState
+                  icon={<Route className="w-14 h-14" />}
+                  title="No trip selected"
+                  text="Choose a trip from My trips, or create a new one, to plan its days."
+                >
+                  <button onClick={() => setActiveTab("trips")} className={BTN_SECONDARY}>
+                    <ChevronRight className="w-5 h-5" />
+                    View trips
+                  </button>
+                  <button onClick={() => setShowWizard(true)} className={BTN_PRIMARY}>
+                    <Plus className="w-5 h-5" />
+                    New trip
+                  </button>
+                </EmptyState>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                    <StatTile
+                      icon={<Calendar className="w-4 h-4" />}
+                      label="Duration"
+                      value={`${activeTrip.duration_days} day${activeTrip.duration_days !== 1 ? "s" : ""}`}
+                    />
+                    <StatTile
+                      icon={<MapPin className="w-4 h-4" />}
+                      label="Stops"
+                      value={activeTrip.destinations?.length ?? 0}
+                    />
+                    <StatTile
+                      icon={<Route className="w-4 h-4" />}
+                      label="Distance"
+                      value={
+                        routeLoading
+                          ? "Routing…"
+                          : routePlan
+                          ? `${routePlan.totalDistanceKm.toFixed(1)} km`
+                          : "-"
+                      }
+                    />
+                    <StatTile
+                      icon={<Clock className="w-4 h-4" />}
+                      label="Driving time"
+                      value={
+                        routeLoading
+                          ? "Routing…"
+                          : routePlan
+                          ? formatDuration(routePlan.totalDurationMinutes)
+                          : "-"
+                      }
                     />
                   </div>
-                )}
 
-                {/* Turn-by-turn route breakdown */}
-                {routePlan && routePlan.legs.length > 0 && (
-                  <div className="bg-white rounded-xl border border-[#c99a43]/20 shadow-sm p-5">
-                    <h3 className="text-sm font-semibold text-[#123b26] mb-3">Turn-by-Turn Leg Breakdown</h3>
-                    <div className="space-y-2">
-                      {routePlan.legs.map((leg, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm text-[#123b26]/80 py-2 border-b border-[#f6f1e8] last:border-0">
-                          <span className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-[#123b26] text-white text-xs flex items-center justify-center font-bold shrink-0">
-                              {i + 1}
-                            </span>
-                            <span className="truncate max-w-[200px]">{leg.fromName}</span>
-                            <ChevronRight className="w-3.5 h-3.5 text-[#c99a43] shrink-0" />
-                            <span className="truncate max-w-[200px]">{leg.toName}</span>
-                          </span>
-                          <span className="text-[#123b26]/50 text-xs shrink-0 ml-3">
-                            {leg.distanceKm.toFixed(1)} km · {Math.round(leg.durationMinutes)} min
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                  <ItineraryDayView
+                    destinations={activeTrip.destinations ?? []}
+                    allAvailablePlaces={allPlaces}
+                    durationDays={activeTrip.duration_days}
+                    onUpdateDestinations={(destinations) =>
+                      updateTrip({ ...activeTrip, destinations })
+                    }
+                    onAddDestination={handleAddDestinationFromItinerary}
+                    onMarkVisited={handleMarkVisited}
+                  />
+
+                  <div className={`${CARD} p-5 flex flex-wrap gap-3`}>
+                    <button onClick={() => setActiveTab("discover")} className={BTN_PRIMARY}>
+                      <Plus className="w-5 h-5" />
+                      Add destinations
+                    </button>
+                    <button onClick={() => setActiveTab("map")} className={BTN_SECONDARY}>
+                      <MapIcon className="w-5 h-5" />
+                      View map
+                    </button>
+                    <button onClick={() => setActiveTab("budget")} className={BTN_SECONDARY}>
+                      <Wallet className="w-5 h-5" />
+                      Budget
+                    </button>
+                    <button onClick={() => setShowShareModal(true)} className={BTN_SECONDARY}>
+                      <Share2 className="w-5 h-5" />
+                      Share
+                    </button>
+                    <button onClick={() => window.print()} className={BTN_SECONDARY}>
+                      <Printer className="w-5 h-5" />
+                      Print PDF
+                    </button>
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
+                </>
+              )}
+            </div>
+          )}
 
-        {/* ── NOTIFICATIONS TAB ── */}
-        {activeTab === "notifications" && (
-          <NotificationCenter userTrips={userTrips} />
-        )}
+          {/* ── BUDGET ── */}
+          {activeTab === "budget" && (
+            <div>
+              {!activeTrip ? (
+                <EmptyState
+                  icon={<Wallet className="w-14 h-14" />}
+                  title="No trip selected"
+                  text="Choose a trip to calculate and manage its expenses."
+                >
+                  <button onClick={() => setActiveTab("trips")} className={BTN_SECONDARY}>
+                    <ChevronRight className="w-5 h-5" />
+                    Go to trips
+                  </button>
+                </EmptyState>
+              ) : (
+                <BudgetCalculator
+                  expenses={activeTripExpenses}
+                  totalBudget={activeTrip.total_budget}
+                  currency={activeTrip.budget_currency}
+                  onUpdateExpenses={handleUpdateExpenses}
+                  onUpdateTotalBudget={handleUpdateTotalBudget}
+                />
+              )}
+            </div>
+          )}
+
+          {/* ── MAP ── */}
+          {activeTab === "map" && (
+            <div className="space-y-6">
+              {!activeTrip ? (
+                <EmptyState
+                  icon={<MapIcon className="w-14 h-14" />}
+                  title="No trip selected"
+                  text="Choose a trip to see its route on the map."
+                >
+                  <button onClick={() => setActiveTab("trips")} className={BTN_SECONDARY}>
+                    <ChevronRight className="w-5 h-5" />
+                    Go to trips
+                  </button>
+                </EmptyState>
+              ) : (
+                <>
+                  {routePlan && (
+                    <>
+                      <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                        <StatTile
+                          icon={<Route className="w-4 h-4" />}
+                          label="Total distance"
+                          value={`${routePlan.totalDistanceKm.toFixed(1)} km`}
+                        />
+                        <StatTile
+                          icon={<Clock className="w-4 h-4" />}
+                          label="Driving time"
+                          value={formatDuration(routePlan.totalDurationMinutes)}
+                        />
+                        <StatTile
+                          icon={<MapPin className="w-4 h-4" />}
+                          label="Stops"
+                          value={tripDestinationPlaces.length}
+                        />
+                      </div>
+                      <p className="text-sm text-[#5b616b]">
+                        {routePlan.isOsrm
+                          ? "Distances and times come from OSRM road routing."
+                          : "Road routing is unavailable, so these are straight-line estimates."}
+                      </p>
+                    </>
+                  )}
+
+                  {tripDestinationPlaces.length === 0 ? (
+                    <EmptyState
+                      icon={<MapPin className="w-14 h-14" />}
+                      title="No destinations yet"
+                      text="Add places to this trip and the route will appear here."
+                    >
+                      <button onClick={() => setActiveTab("discover")} className={BTN_PRIMARY}>
+                        <Plus className="w-5 h-5" />
+                        Discover places
+                      </button>
+                    </EmptyState>
+                  ) : (
+                    <div
+                      className="rounded-xl overflow-hidden border border-[#e3e6ea]"
+                      style={{ height: "560px" }}
+                    >
+                      <TripMap
+                        startLocation={startLocation}
+                        destinations={tripDestinationPlaces}
+                        routePlan={routePlan}
+                        height="560px"
+                        interactive={true}
+                      />
+                    </div>
+                  )}
+
+                  {routePlan && routePlan.legs.length > 0 && (
+                    <section className={`${CARD} p-6`}>
+                      <SectionTitle icon={<Route className="w-5 h-5" />}>Route legs</SectionTitle>
+                      <div>
+                        {routePlan.legs.map((leg, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between gap-4 py-4 border-b border-[#e3e6ea] last:border-0 text-base"
+                          >
+                            <span className="flex items-center gap-3 min-w-0">
+                              <span className="w-8 h-8 rounded-full bg-[#f1f2f4] text-sm flex items-center justify-center font-bold shrink-0">
+                                {i + 1}
+                              </span>
+                              <span className="truncate">{leg.fromName}</span>
+                              <ChevronRight className="w-5 h-5 text-[#a77a2f] shrink-0" />
+                              <span className="truncate">{leg.toName}</span>
+                            </span>
+                            <span className="text-sm text-[#5b616b] shrink-0">
+                              {leg.distanceKm.toFixed(1)} km, {Math.round(leg.durationMinutes)} min
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── NOTIFICATIONS ── */}
+          {activeTab === "notifications" && <NotificationCenter userTrips={userTrips} />}
+        </main>
       </div>
 
       {/* ── MODALS ── */}
-
-      {/* Trip Creation Wizard */}
       {showWizard && (
         <TripWizardModal
           isOpen={showWizard}
@@ -913,7 +1524,16 @@ export default function TripPlannerView() {
         />
       )}
 
-      {/* Share / Collaboration Modal */}
+      {editingTrip && (
+        <TripEditModal
+          key={editingTrip.id}
+          trip={editingTrip}
+          saving={saving}
+          onClose={() => setEditingTrip(null)}
+          onSave={saveTripEdits}
+        />
+      )}
+
       {showShareModal && activeTrip && (
         <TripShareModal
           trip={activeTrip}
@@ -923,31 +1543,33 @@ export default function TripPlannerView() {
         />
       )}
 
-      {/* Delete Confirmation */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <h3 className="font-semibold text-[#123b26]">Delete Trip?</h3>
-            </div>
-            <p className="text-sm text-[#123b26]/70 mb-6">
-              This will permanently delete this trip, itinerary stops, and budget data.
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-trip-title"
+        >
+          <div className="bg-white rounded-xl border border-[#e3e6ea] shadow-xl max-w-md w-full p-7">
+            <h3 id="delete-trip-title" className="text-xl font-bold mb-3">
+              Delete this trip?
+            </h3>
+            <p className="text-base text-[#5b616b] mb-7">
+              The trip, its itinerary stops and its budget will be permanently deleted. This
+              can&apos;t be undone.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="flex-1 border border-gray-200 text-[#123b26] py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                className={`${BTN_SECONDARY} flex-1`}
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteTrip(showDeleteConfirm)}
-                className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
+                className="flex-1 bg-red-600 text-white py-3 rounded-lg text-sm font-bold hover:bg-red-700 transition-colors"
               >
-                Delete
+                Delete trip
               </button>
             </div>
           </div>
@@ -959,5 +1581,3 @@ export default function TripPlannerView() {
     </div>
   );
 }
-
-

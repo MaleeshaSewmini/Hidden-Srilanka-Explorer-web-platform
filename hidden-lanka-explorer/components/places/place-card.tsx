@@ -121,7 +121,8 @@ export default function PlaceCard({ place }: PlaceCardProps) {
 
             <h3
               onClick={() => setShowModal(true)}
-              className="mt-2 line-clamp-1 cursor-pointer font-display text-[1.7rem] leading-tight font-bold text-[#0b2417] transition hover:text-[#a06a1d]"
+             className="mt-2 line-clamp-1 cursor-pointer text-[1.7rem] leading-tight font-bold text-[black] transition hover:text-[#a06a1d]"
+style={{ fontFamily: "Arial, sans-serif" }}
             >
               {place.name}
             </h3>

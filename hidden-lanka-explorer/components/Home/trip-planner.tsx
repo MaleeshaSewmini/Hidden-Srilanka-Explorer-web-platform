@@ -2,15 +2,35 @@
 
 import Link from "next/link";
 import { MapPinned, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useTrip } from "@/lib/trip-context";
+import { createClient } from "@/lib/supabase/client";
 
 export default function TripPlanner() {
   const { placeIds, clear } = useTrip();
   const [open, setOpen] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
 
-  if (placeIds.length === 0) {
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setIsSignedIn(Boolean(data.user));
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsSignedIn(Boolean(session?.user));
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Only display trip planner for signed-in users with saved destinations
+  if (!isSignedIn || placeIds.length === 0) {
     return null;
   }
 
@@ -28,7 +48,7 @@ export default function TripPlanner() {
             </div>
 
             <div className="text-xs text-white/50">
-              Your trip is saved in this browser.
+              Your trip is saved in this account.
             </div>
           </div>
 
@@ -65,7 +85,7 @@ export default function TripPlanner() {
             </p>
 
             <Link
-              href="/dashboard/trips"
+              href="/trips"
               onClick={() => setOpen(false)}
               className="mt-6 block rounded-2xl bg-[#0b2417] px-5 py-4 text-center font-semibold text-white"
             >

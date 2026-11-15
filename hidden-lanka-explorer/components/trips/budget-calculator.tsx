@@ -204,7 +204,7 @@ export default function BudgetCalculator({
           onSubmit={handleAddExpense}
           className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3"
         >
-          <div className="font-bold text-xs uppercase tracking-wider text-emerald-950">
+          <div className="font-bold text-sm uppercase tracking-wider text-emerald-950">
             Add New Trip Expense Line
           </div>
 
@@ -216,7 +216,7 @@ export default function BudgetCalculator({
                 placeholder="Expense description (e.g. Ella Safari Jeep hire)"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white p-2 text-xs text-[#0b2417] outline-none"
+                className="w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-[#0b2417] outline-none"
               />
             </div>
 
@@ -228,7 +228,7 @@ export default function BudgetCalculator({
                 placeholder="Amount (LKR)"
                 value={newAmount || ""}
                 onChange={(e) => setNewAmount(Number(e.target.value))}
-                className="w-full rounded-xl border border-gray-300 bg-white p-2 text-xs text-[#0b2417] outline-none"
+                className="w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-[#0b2417] outline-none"
               />
             </div>
 
@@ -249,7 +249,7 @@ export default function BudgetCalculator({
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <label className="flex items-center gap-2 text-xs text-[#0b2417] cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-[#0b2417] cursor-pointer">
               <input
                 type="checkbox"
                 checked={!newIsEstimated}
@@ -261,7 +261,7 @@ export default function BudgetCalculator({
 
             <button
               type="submit"
-              className="rounded-xl bg-[#123b26] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#c99a43] hover:text-[#0b2417]"
+              className="rounded-xl bg-[#123b26] px-4 py-1.5 text-sm font-bold text-white hover:bg-[#c99a43] hover:text-[#0b2417]"
             >
               Add Expense
             </button>
@@ -283,13 +283,13 @@ export default function BudgetCalculator({
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white p-2 text-xs text-[#0b2417]"
+                    className="w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-[#0b2417]"
                   />
                   <input
                     type="number"
                     value={editAmount}
                     onChange={(e) => setEditAmount(Number(e.target.value))}
-                    className="w-full rounded-lg border border-gray-300 bg-white p-2 text-xs text-[#0b2417]"
+                    className="w-full rounded-lg border border-gray-300 bg-white p-2 text-sm text-[#0b2417]"
                   />
                   <label className="flex items-center gap-2 text-xs text-[#0b2417]">
                     <input
@@ -305,14 +305,14 @@ export default function BudgetCalculator({
                   <button
                     type="button"
                     onClick={() => setEditingExpenseId(null)}
-                    className="px-2.5 py-1 text-xs text-gray-600 hover:text-black"
+                    className="px-2.5 py-1 text-sm text-gray-600 hover:text-black"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSaveEdit(expense.id)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-[#123b26] px-3 py-1 text-xs font-bold text-white"
+                    className="inline-flex items-center gap-1 rounded-lg bg-[#123b26] px-3 py-1 text-sm font-bold text-white"
                   >
                     <Check size={13} /> Save
                   </button>
@@ -333,7 +333,7 @@ export default function BudgetCalculator({
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs sm:text-sm text-[#0b2417]">
+                    <span className="font-bold text-sm sm:text-sm text-[#0b2417]">
                       {expense.title}
                     </span>
                     <span
@@ -348,13 +348,13 @@ export default function BudgetCalculator({
                   </div>
 
                   {expense.notes && (
-                    <p className="text-[11px] text-[#718078]">{expense.notes}</p>
+                    <p className="text-[15px] text-[#718078]">{expense.notes}</p>
                   )}
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="font-bold text-xs sm:text-sm text-[#0b2417]">
+                <span className="font-bold text-sm sm:text-sm text-[#0b2417]">
                   {formatCurrency(expense.amount, currency)}
                 </span>
 
