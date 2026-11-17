@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/client";
    TYPES & DATA MODELS  (unchanged)
    ========================================================================== */
 
-type TabType = "reviews" | "discussions" | "tips" | "contributors" | "ethics";
+type TabType = "reviews" | "discussions" | "tips" | "contributors" | "chats" | "ethics";
 
 type RealPlace = {
   id: string;
@@ -115,6 +115,21 @@ type RealProfile = {
   district: string | null;
   travel_style: string | null;
   favorite_categories: string[] | null;
+  created_at: string;
+};
+
+type CommunityConversation = {
+  id: string;
+  participant_one: string;
+  participant_two: string;
+  created_at: string;
+};
+
+type CommunityMessage = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
   created_at: string;
 };
 
@@ -281,6 +296,32 @@ const STYLES = `
 .cm-profile.me{ border-color:var(--green2); }
 .cm-profile .nm{ font-size:14px; font-weight:700; color:var(--ink); } .cm-profile p{ margin:0; font-size:13px; color:var(--text); }
 
+/* private chats */
+.cm-chat-layout{ display:grid; grid-template-columns:minmax(220px,.8fr) minmax(0,1.2fr); gap:14px; margin-top:16px; }
+.cm-chat-sidebar,.cm-chat-window{ min-width:0; padding:16px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.cm-chat-sidebar{ display:grid; align-content:start; gap:18px; }
+.cm-chat-sidebar h3{ margin:0 0 10px; font-size:15px; color:var(--ink); }
+.cm-chat-list{ display:grid; gap:7px; max-height:220px; overflow-y:auto; }
+.cm-chat-person{ display:flex; align-items:center; gap:9px; min-width:0; padding:9px; border:1px solid var(--line); border-radius:9px; background:#fff; }
+.cm-chat-person[aria-pressed="true"]{ border-color:var(--green2); background:var(--leaf); }
+.cm-chat-person-info{ flex:1; min-width:0; text-align:left; }
+.cm-chat-person-info b,.cm-chat-person-info small{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cm-chat-person-info b{ color:var(--ink); font-size:13px; }
+.cm-chat-person-info small{ color:var(--muted); font-size:11px; }
+.cm-chat-invite{ flex-shrink:0; padding:6px 8px; border-radius:7px; color:var(--green2); font-size:11px; font-weight:700; cursor:pointer; }
+.cm-chat-invite:hover{ background:var(--leaf); }
+.cm-chat-window{ display:flex; flex-direction:column; min-height:420px; }
+.cm-chat-window-head{ display:flex; align-items:center; gap:10px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.cm-chat-window-head b{ color:var(--ink); }
+.cm-chat-messages{ display:flex; flex:1; flex-direction:column; align-items:flex-start; gap:9px; min-height:280px; max-height:440px; padding:14px 0; overflow-y:auto; }
+.cm-chat-bubble{ max-width:82%; padding:9px 12px; border-radius:12px 12px 12px 3px; background:var(--leaf); color:var(--text); overflow-wrap:anywhere; }
+.cm-chat-bubble.me{ align-self:flex-end; border-radius:12px 12px 3px 12px; background:var(--green); color:#fff; }
+.cm-chat-bubble p{ margin:0; white-space:pre-wrap; }
+.cm-chat-bubble time{ display:block; margin-top:4px; font-size:10px; opacity:.72; }
+.cm-chat-compose{ display:flex; align-items:flex-end; gap:8px; padding-top:12px; border-top:1px solid var(--line); }
+.cm-chat-compose textarea{ flex:1; min-width:0; min-height:42px; max-height:120px; resize:vertical; padding:10px 12px; border:1px solid var(--line); border-radius:8px; color:var(--ink); font:inherit; }
+.cm-chat-error{ margin-top:12px; padding:10px 12px; border-radius:8px; background:#fff0ee; color:var(--red); font-size:13px; }
+
 /* ethics */
 .cm-ethic{ display:flex; gap:14px; padding:18px 20px; background:#fff; border:1px solid var(--line); border-radius:12px; }
 .cm-ethic .ic{ display:grid; place-items:center; width:30px; height:30px; flex-shrink:0; border-radius:50%; background:var(--leaf); color:var(--green2); }
@@ -326,6 +367,7 @@ const STYLES = `
 }
 @media (max-width:820px){
   .cm-layout{ grid-template-columns:1fr; }
+  .cm-chat-layout{ grid-template-columns:1fr; }
   .cm-side{ position:static; }
   .cm-nav{ flex-direction:row; overflow-x:auto; } .cm-navbtn{ width:auto; white-space:nowrap; }
   .cm-stat{ display:none; }
@@ -454,6 +496,14 @@ export default function CommunityPage() {
   const [places, setPlaces] = useState<RealPlace[]>([]);
   const [profiles, setProfiles] = useState<RealProfile[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [chatConversations, setChatConversations] = useState<CommunityConversation[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<CommunityMessage[]>([]);
+  const [chatMessagesConversationId, setChatMessagesConversationId] = useState<string | null>(null);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatInboxLoading, setChatInboxLoading] = useState(false);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
 
   const [reviews, setReviews] = useState<CommunityReview[]>([]);
   const [discussions, setDiscussions] = useState<CommunityDiscussion[]>([]);
@@ -733,6 +783,96 @@ export default function CommunityPage() {
       isMounted = false;
     };
   }, [supabase]);
+
+  const currentUserProfile = profiles.find((profile) => profile.id === currentUser?.id) || null;
+  const currentUserId = currentUser?.id;
+  const currentUserProfileId = currentUserProfile?.id;
+
+  useEffect(() => {
+    if (activeTab !== "chats" || !currentUserId || !currentUserProfileId) return;
+
+    let isActive = true;
+
+    const loadConversations = async (showLoading = false) => {
+      if (showLoading) setChatInboxLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("community_conversations")
+          .select("id, participant_one, participant_two, created_at")
+          .or(`participant_one.eq.${currentUserId},participant_two.eq.${currentUserId}`)
+          .order("created_at", { ascending: false });
+
+        if (!isActive) return;
+        if (error) {
+          setChatError(`Could not load your chats: ${error.message}`);
+          setChatInboxLoading(false);
+          return;
+        }
+
+        const conversations: CommunityConversation[] = data || [];
+        setChatConversations(conversations);
+        setSelectedChatId((selectedId) =>
+          selectedId && conversations.some((conversation) => conversation.id === selectedId)
+            ? selectedId
+            : conversations[0]?.id || null
+        );
+        setChatInboxLoading(false);
+      } catch (error) {
+        if (!isActive) return;
+        setChatError(
+          `Could not load your chats: ${error instanceof Error ? error.message : "Unexpected error"}`
+        );
+        setChatInboxLoading(false);
+      }
+    };
+
+    void loadConversations(true);
+    const refreshId = window.setInterval(() => void loadConversations(), 10000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(refreshId);
+    };
+  }, [activeTab, currentUserId, currentUserProfileId, supabase]);
+
+  useEffect(() => {
+    if (activeTab !== "chats" || !selectedChatId || !currentUserId || !currentUserProfileId) return;
+
+    let isActive = true;
+
+    const loadMessages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("community_messages")
+          .select("id, conversation_id, sender_id, body, created_at")
+          .eq("conversation_id", selectedChatId)
+          .order("created_at", { ascending: false })
+          .limit(100);
+
+        if (!isActive) return;
+        if (error) {
+          setChatError(`Could not load messages: ${error.message}`);
+          return;
+        }
+        setChatMessagesConversationId(selectedChatId);
+        const messages: CommunityMessage[] = data || [];
+        setChatMessages(messages.reverse());
+      } catch (error) {
+        if (!isActive) return;
+        setChatError(
+          `Could not load messages: ${error instanceof Error ? error.message : "Unexpected error"}`
+        );
+      }
+    };
+
+    void loadMessages();
+    const refreshId = window.setInterval(loadMessages, 3000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(refreshId);
+    };
+  }, [activeTab, currentUserId, currentUserProfileId, selectedChatId, supabase]);
 
   const availableDistricts = useMemo(() => {
     const set = new Set<string>();
@@ -1100,6 +1240,121 @@ export default function CommunityPage() {
     setIsModalOpen(true);
   };
 
+  const startChatWith = async (profile: RealProfile) => {
+    if (!currentUser) {
+      setChatError("Sign in to invite an explorer to chat.");
+      setActiveTab("chats");
+      return;
+    }
+    if (!currentUserProfile) {
+      setChatError("Create your community profile before starting a chat.");
+      setActiveTab("chats");
+      return;
+    }
+    if (profile.id === currentUser.id) return;
+
+    const [participantOne, participantTwo] = [currentUser.id, profile.id].sort();
+    setChatError(null);
+
+    try {
+      const findConversation = () =>
+        supabase
+          .from("community_conversations")
+          .select("id, participant_one, participant_two, created_at")
+          .eq("participant_one", participantOne)
+          .eq("participant_two", participantTwo)
+          .maybeSingle();
+
+      const { data: existingConversation, error: lookupError } = await findConversation();
+      if (lookupError) {
+        setChatError(`Could not invite this explorer: ${lookupError.message}`);
+        setActiveTab("chats");
+        return;
+      }
+
+      let conversation: CommunityConversation | null = existingConversation;
+      if (!conversation) {
+        const { data: createdConversation, error: createError } = await supabase
+          .from("community_conversations")
+          .insert({
+            participant_one: participantOne,
+            participant_two: participantTwo,
+          })
+          .select("id, participant_one, participant_two, created_at")
+          .single();
+
+        if (createError?.code === "23505") {
+          const { data: racedConversation, error: retryError } = await findConversation();
+          if (retryError || !racedConversation) {
+            setChatError(`Could not open this chat: ${retryError?.message || createError.message}`);
+            setActiveTab("chats");
+            return;
+          }
+          conversation = racedConversation;
+        } else if (createError || !createdConversation) {
+          setChatError(`Could not invite this explorer: ${createError?.message || "Unexpected error"}`);
+          setActiveTab("chats");
+          return;
+        } else {
+          conversation = createdConversation;
+        }
+      }
+
+      const chat = conversation;
+      setChatConversations((existing) => [
+        chat,
+        ...existing.filter((item) => item.id !== chat.id),
+      ]);
+      setSelectedChatId(chat.id);
+      setChatDraft("");
+      setChatError(null);
+      setActiveTab("chats");
+    } catch (error) {
+      setChatError(
+        `Could not invite this explorer: ${error instanceof Error ? error.message : "Unexpected error"}`
+      );
+      setActiveTab("chats");
+    }
+  };
+
+  const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const body = chatDraft.trim();
+    if (!body || !currentUser || !currentUserProfile || !selectedChatId || chatSending) return;
+
+    setChatSending(true);
+    setChatError(null);
+    try {
+      const { data, error } = await supabase
+        .from("community_messages")
+        .insert({
+          conversation_id: selectedChatId,
+          sender_id: currentUser.id,
+          body,
+        })
+        .select("id, conversation_id, sender_id, body, created_at")
+        .single();
+
+      if (error || !data) {
+        setChatError(`Could not send your message: ${error?.message || "Unexpected error"}`);
+        return;
+      }
+
+      setChatMessagesConversationId(selectedChatId);
+      setChatMessages((messages) => [
+        ...(chatMessagesConversationId === selectedChatId ? messages : []),
+        data,
+      ]);
+      setChatDraft("");
+    } catch (error) {
+      setChatError(
+        `Could not send your message: ${error instanceof Error ? error.message : "Unexpected error"}`
+      );
+    } finally {
+      setChatSending(false);
+    }
+  };
+
   const goTab = (id: TabType) => {
     setActiveTab(id);
     setShowLikedOnly(false);
@@ -1107,13 +1362,30 @@ export default function CommunityPage() {
 
   const profileCount = profiles.length > 0 ? profiles.length : currentUser ? 1 : 0;
 
-  const navItems: { id: TabType; label: string; count?: number; icon: ReactNode }[] = [
+  const allNavItems: { id: TabType; label: string; count?: number; icon: ReactNode }[] = [
     { id: "reviews", label: "Reviews & field notes", count: filteredReviews.length, icon: <MessageSquare size={16} /> },
     { id: "discussions", label: "Questions & answers", count: filteredDiscussions.length, icon: <HelpCircle size={16} /> },
     { id: "tips", label: "Trail tips & alerts", count: filteredTips.length, icon: <AlertTriangle size={16} /> },
     { id: "contributors", label: "Community profiles", count: profiles.length, icon: <Users size={16} /> },
+    { id: "chats", label: "Private chats", count: chatConversations.length, icon: <MessageCircle size={16} /> },
     { id: "ethics", label: "Traveler ethics", icon: <Leaf size={16} /> },
   ];
+  const navItems = allNavItems.filter(
+    ({ id }) => id !== "chats" || Boolean(currentUser && currentUserProfile)
+  );
+
+  const selectedChat = chatConversations.find((conversation) => conversation.id === selectedChatId) || null;
+  const visibleChatMessages =
+    chatMessagesConversationId === selectedChatId ? chatMessages : [];
+  const chatPartner = selectedChat
+    ? profiles.find(
+        (profile) =>
+          profile.id ===
+          (selectedChat.participant_one === currentUser?.id
+            ? selectedChat.participant_two
+            : selectedChat.participant_one)
+      ) || null
+    : null;
 
   const SEVERITY_META = {
     essential: { label: "Essential", color: "#b4620f" },
@@ -1760,7 +2032,190 @@ export default function CommunityPage() {
                 </div>
               )}
 
-              {/* TAB 5: ETHICS */}
+              {/* TAB 5: PRIVATE CHATS */}
+              {activeTab === "chats" && (
+                <div key="chats" className="cm-panel">
+                  <PanelHead
+                    title="Private chats"
+                    text="Invite a registered explorer to start a one-to-one conversation."
+                  />
+
+                  {!currentUser ? (
+                    <div className="cm-empty">
+                      <h3>Sign in to chat</h3>
+                      <p>Private chats are available to explorers with a community profile.</p>
+                      <Link href="/auth/sign-in" className="cm-btn dark">
+                        Sign in / register
+                      </Link>
+                    </div>
+                  ) : !currentUserProfile ? (
+                    <div className="cm-empty">
+                      <h3>Create your community profile</h3>
+                      <p>Set up a profile before inviting other explorers to chat.</p>
+                      <Link href="/profile" className="cm-btn dark">
+                        Set up profile
+                      </Link>
+                    </div>
+                  ) : (
+                    <>
+                      {chatError && (
+                        <div className="cm-chat-error" role="alert">
+                          {chatError}
+                        </div>
+                      )}
+                      <div className="cm-chat-layout">
+                        <aside className="cm-chat-sidebar" aria-label="Chats and explorers">
+                          <section>
+                            <h3>Your chats</h3>
+                            {chatInboxLoading ? (
+                              <p className="cm-meta">Loading chats...</p>
+                            ) : chatConversations.length === 0 ? (
+                              <p className="cm-meta">No chats yet. Invite an explorer below.</p>
+                            ) : (
+                              <div className="cm-chat-list">
+                                {chatConversations.map((conversation) => {
+                                  const friendId =
+                                    conversation.participant_one === currentUser.id
+                                      ? conversation.participant_two
+                                      : conversation.participant_one;
+                                  const friend = profiles.find((profile) => profile.id === friendId);
+
+                                  return (
+                                    <button
+                                      key={conversation.id}
+                                      type="button"
+                                      className="cm-chat-person"
+                                      aria-pressed={selectedChatId === conversation.id}
+                                      onClick={() => {
+                                        setSelectedChatId(conversation.id);
+                                        setChatError(null);
+                                      }}
+                                    >
+                                      <span className="cm-avatar">
+                                        {friend?.avatar_url ? (
+                                          <Image src={friend.avatar_url} alt="" fill unoptimized className="object-cover" />
+                                        ) : (
+                                          friend?.display_name?.charAt(0) || friend?.username?.charAt(0) || "E"
+                                        )}
+                                      </span>
+                                      <span className="cm-chat-person-info">
+                                        <b>{friend?.display_name || friend?.username || "Explorer"}</b>
+                                        <small>{friend?.username ? `@${friend.username}` : "Community member"}</small>
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </section>
+
+                          <section>
+                            <h3>Invite an explorer</h3>
+                            {profiles.filter((profile) => profile.id !== currentUser.id).length === 0 ? (
+                              <p className="cm-meta">No other community profiles are available yet.</p>
+                            ) : (
+                              <div className="cm-chat-list">
+                                {profiles
+                                  .filter((profile) => profile.id !== currentUser.id)
+                                  .map((profile) => (
+                                    <div key={profile.id} className="cm-chat-person">
+                                      <span className="cm-avatar">
+                                        {profile.avatar_url ? (
+                                          <Image src={profile.avatar_url} alt="" fill unoptimized className="object-cover" />
+                                        ) : (
+                                          profile.display_name?.charAt(0) || profile.username?.charAt(0) || "E"
+                                        )}
+                                      </span>
+                                      <span className="cm-chat-person-info">
+                                        <b>{profile.display_name || profile.username || "Explorer"}</b>
+                                        <small>{profile.username ? `@${profile.username}` : "Community member"}</small>
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="cm-chat-invite"
+                                        onClick={() => void startChatWith(profile)}
+                                      >
+                                        Invite
+                                      </button>
+                                    </div>
+                                  ))}
+                              </div>
+                            )}
+                          </section>
+                        </aside>
+
+                        <section className="cm-chat-window" aria-label="Private conversation">
+                          {selectedChat && chatPartner ? (
+                            <>
+                              <div className="cm-chat-window-head">
+                                <span className="cm-avatar">
+                                  {chatPartner.avatar_url ? (
+                                    <Image src={chatPartner.avatar_url} alt="" fill unoptimized className="object-cover" />
+                                  ) : (
+                                    chatPartner.display_name?.charAt(0) || chatPartner.username?.charAt(0) || "E"
+                                  )}
+                                </span>
+                                <div>
+                                  <b>{chatPartner.display_name || chatPartner.username || "Explorer"}</b>
+                                  <div className="cm-meta">
+                                    {chatPartner.username ? `@${chatPartner.username}` : "Community member"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="cm-chat-messages" role="log" aria-live="polite">
+                                {visibleChatMessages.length === 0 ? (
+                                  <p className="cm-meta">This is the start of your private conversation.</p>
+                                ) : (
+                                  visibleChatMessages.map((message) => (
+                                    <article
+                                      key={message.id}
+                                      className={`cm-chat-bubble ${message.sender_id === currentUser.id ? "me" : ""}`}
+                                    >
+                                      <p>{message.body}</p>
+                                      <time dateTime={message.created_at}>
+                                        {new Date(message.created_at).toLocaleTimeString([], {
+                                          hour: "numeric",
+                                          minute: "2-digit",
+                                        })}
+                                      </time>
+                                    </article>
+                                  ))
+                                )}
+                              </div>
+
+                              <form className="cm-chat-compose" onSubmit={sendChatMessage}>
+                                <textarea
+                                  required
+                                  maxLength={2000}
+                                  value={chatDraft}
+                                  onChange={(event) => setChatDraft(event.target.value)}
+                                  placeholder="Write a private message..."
+                                  aria-label="Write a private message"
+                                />
+                                <button
+                                  type="submit"
+                                  className="cm-btn dark"
+                                  disabled={chatSending || !chatDraft.trim()}
+                                >
+                                  {chatSending ? "Sending..." : "Send"}
+                                </button>
+                              </form>
+                            </>
+                          ) : (
+                            <div className="cm-empty">
+                              <h3>Choose a chat</h3>
+                              <p>Pick an existing conversation or invite an explorer to begin.</p>
+                            </div>
+                          )}
+                        </section>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 6: ETHICS */}
               {activeTab === "ethics" && (
                 <div key="ethics" className="cm-panel">
                   <PanelHead

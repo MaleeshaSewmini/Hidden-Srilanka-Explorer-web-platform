@@ -5,6 +5,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Eye, EyeOff } from "lucide-react";
 
+const LEGAL_DOCUMENT_VERSION = "2026-11-17";
+
 function getPasswordStrength(pass: string) {
   if (!pass) {
     return { score: 0, label: "", color: "#dfe5df" };
@@ -96,6 +98,7 @@ export default function SignUpPage() {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
+  const [acceptedLegalDocuments, setAcceptedLegalDocuments] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">(
     "success",
@@ -143,6 +146,11 @@ export default function SignUpPage() {
     const cleanEmail = email.trim();
     const cleanDisplayName = displayName.trim();
     const cleanWebsite = websiteUrl.trim();
+
+    if (!acceptedLegalDocuments) {
+      showMessage("Please accept the Terms of Service and Community Guidelines to continue.");
+      return;
+    }
 
     if (!/^[a-zA-Z0-9_]{3,24}$/.test(cleanUsername)) {
       showMessage(
@@ -204,11 +212,18 @@ export default function SignUpPage() {
     };
 
     try {
+      const acceptedAt = new Date().toISOString();
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
         options: {
-          data: profile,
+          data: {
+            ...profile,
+            terms_accepted_version: LEGAL_DOCUMENT_VERSION,
+            terms_accepted_at: acceptedAt,
+            community_guidelines_accepted_version: LEGAL_DOCUMENT_VERSION,
+            community_guidelines_accepted_at: acceptedAt,
+          },
         },
       });
 
@@ -662,6 +677,26 @@ export default function SignUpPage() {
                 <p>{message}</p>
               </div>
             )}
+
+            <label className="legal-consent">
+              <input
+                type="checkbox"
+                required
+                checked={acceptedLegalDocuments}
+                onChange={(event) => setAcceptedLegalDocuments(event.target.checked)}
+              />
+              <span>
+                I agree to the{" "}
+                <Link href="/terms" target="_blank" rel="noreferrer">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="/community-guidelines" target="_blank" rel="noreferrer">
+                  Community Guidelines
+                </Link>
+                .
+              </span>
+            </label>
 
             {/* Submit */}
             <button className="submit" type="submit" disabled={busy}>
@@ -1267,6 +1302,35 @@ export default function SignUpPage() {
           text-align: center;
           font-size: 14px;
           line-height: 1.6;
+        }
+
+        .legal-consent {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          margin: 0;
+          padding: 14px;
+          border: 1px solid #d5dfd4;
+          border-radius: 9px;
+          background: #f7faf6;
+          color: #34473a;
+          font-size: 14px;
+          line-height: 1.6;
+        }
+
+        .legal-consent input {
+          flex: 0 0 auto;
+          width: 18px;
+          height: 18px;
+          margin: 2px 0 0;
+          accent-color: #1f5a3a;
+        }
+
+        .legal-consent a {
+          color: #1f5a3a;
+          font-weight: 700;
+          text-decoration: underline;
+          text-underline-offset: 3px;
         }
 
         .signin {

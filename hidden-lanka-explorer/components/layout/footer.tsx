@@ -61,6 +61,9 @@ const STYLES = `
 
 .ft-bottom{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; margin-top:64px; padding-top:24px;
   border-top:1px solid rgba(255,255,255,.2); font-size:14px; color:rgba(255,255,255,.7); }
+.ft-legal{ display:flex; flex-wrap:wrap; gap:16px; }
+.ft-legal a{ color:rgba(255,255,255,.8); text-decoration:none; }
+.ft-legal a:hover{ color:#fff; }
 .ft-top{ display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:999px; font-size:13px; font-weight:700; color:#fff; cursor:pointer;
   background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.28); backdrop-filter:blur(6px);
   transition:background .25s, color .25s, border-color .25s, transform .2s var(--ease); }
@@ -199,6 +202,11 @@ export default function Footer() {
         {/* Copyright */}
         <div className="ft-bottom">
           <span>© {new Date().getFullYear()} Hidden Lanka Explorer. All rights reserved.</span>
+
+          <nav className="ft-legal" aria-label="Legal">
+            <Link href="/terms">Terms of Service</Link>
+            <Link href="/community-guidelines">Community Guidelines</Link>
+          </nav>
 
           <button
             type="button"
