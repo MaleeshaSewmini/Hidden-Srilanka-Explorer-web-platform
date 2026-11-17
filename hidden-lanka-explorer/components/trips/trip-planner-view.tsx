@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -20,6 +19,7 @@ import {
   loadUserTrips,
   markPlaceAsVisited,
   saveTrip,
+  unmarkPlaceAsVisited,
   VisitedPlaceRecord,
 } from "@/lib/trip-planner/storage";
 import { generateDefaultTripExpenses } from "@/lib/trip-planner/budget";
@@ -53,6 +53,16 @@ import {
   Eye,
 } from "lucide-react";
 
+const SECONDARY_TEXT_CSS = String.raw`
+.trip-planner-root [class~="text-[#5b616b]"],
+.trip-planner-root [class~="text-[#718078]"],
+.trip-planner-root [class~="text-[#123b26]/50"],
+.trip-planner-root [class~="text-[#123b26]/60"],
+.trip-planner-root [class~="text-[#123b26]/70"],
+.trip-planner-root [class~="text-[#123b26]/80"],
+.trip-planner-root [class*="text-gray-"] { color: #000000 !important; }
+`;
+
 // TripMap uses Leaflet which requires browser window (ssr: false)
 const TripMap = dynamic(() => import("@/components/trips/trip-map"), {
   ssr: false,
@@ -70,8 +80,6 @@ type DashboardTab = "trips" | "discover" | "itinerary" | "budget" | "map" | "not
 
 export default function TripPlannerView() {
   // ─────────────────────────── State ───────────────────────────
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<DashboardTab>("trips");
   const [allPlaces, setAllPlaces] = useState<PlaceRecord[]>([]);
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
@@ -87,33 +95,6 @@ export default function TripPlannerView() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const routeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ─────────────────────────── Check authentication ───────────────────────────
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data, error: authErr }) => {
-      if (!authErr && data?.user) {
-        setCurrentUser(data.user);
-      } else {
-        setCurrentUser(null);
-      }
-      setAuthLoading(false);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          setCurrentUser(session.user);
-        } else {
-          setCurrentUser(null);
-        }
-      }
-    );
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
-  }, []);
 
   // ─────────────────────────── Load places from Supabase (matching website) ───────────────────────────
   useEffect(() => {
@@ -330,74 +311,31 @@ export default function TripPlannerView() {
 
   // ─────────────────────────── Add / Remove destination ───────────────────────────
   const handleAddPlace = useCallback(
-    async (place: PlaceRecord) => {
-      let currentTrip = activeTrip;
-      if (!currentTrip) {
-        const newTrip: Trip = {
-          id: `trip-${Date.now()}`,
-          user_id: currentUser?.id || "anonymous",
-          title: "My Sri Lanka Trip",
-          description: "Trip created from Discover Places",
-          start_location_name: startLocation.name,
-          start_latitude: startLocation.latitude,
-          start_longitude: startLocation.longitude,
-          start_date: new Date().toISOString().split("T")[0],
-          duration_days: 3,
-          traveler_count: 2,
-          transport_mode: "driving",
-          total_budget: 150000,
-          estimated_cost: 0,
-          budget_currency: "LKR",
-          status: "planning",
-          is_public: false,
-          destinations: [],
-          expenses: [],
-          preferences: {
-            interests: [],
-            preferred_districts: [],
-            preferred_categories: [],
-            pace: "moderate",
-            accommodation_tier: "mid_range",
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        newTrip.expenses = generateDefaultTripExpenses(newTrip.id, {
-          travelerCount: newTrip.traveler_count,
-          durationDays: newTrip.duration_days,
-          totalDistanceKm: 100,
-          transportMode: "driving",
-          accommodationTier: "mid_range",
-          selectedPlaces: [],
-        });
-        currentTrip = newTrip;
-        setUserTrips((prev) => [newTrip, ...prev]);
-        setActiveTrip(newTrip);
-        await saveTrip(newTrip);
-      }
-
-      if ((currentTrip.destinations ?? []).some((d) => d.place_id === place.id)) {
+    (place: PlaceRecord) => {
+      if (!activeTrip) {
+        setError("Select or create a trip first.");
         return;
       }
+      if (activeTripDestIds.includes(place.id)) return;
 
       const dest: TripDestination = {
         id: `dest-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        trip_id: currentTrip.id,
+        trip_id: activeTrip.id,
         place_id: place.id,
         day_number: 1,
-        order_index: currentTrip.destinations?.length ?? 0,
+        order_index: activeTrip.destinations?.length ?? 0,
         visit_time_slot: "morning",
         is_visited: false,
         place,
       };
 
       const updated: Trip = {
-        ...currentTrip,
-        destinations: [...(currentTrip.destinations ?? []), dest],
+        ...activeTrip,
+        destinations: [...(activeTrip.destinations ?? []), dest],
       };
-      await updateTrip(updated);
+      updateTrip(updated);
     },
-    [activeTrip, startLocation, updateTrip]
+    [activeTrip, activeTripDestIds, updateTrip]
   );
 
   const handleRemovePlace = useCallback(
@@ -440,26 +378,30 @@ export default function TripPlannerView() {
     (dest: TripDestination) => {
       if (!activeTrip) return;
       const place = dest.place ?? allPlaces.find((p) => p.id === dest.place_id);
+      const isVisited = !dest.is_visited;
+      const visitedAt = isVisited ? new Date().toISOString() : null;
 
-      if (dest.is_visited && place) {
+      if (isVisited && place && visitedAt) {
         const record: VisitedPlaceRecord = {
           place_id: dest.place_id,
           place_name: place.name,
           district: place.district,
           latitude: place.latitude,
           longitude: place.longitude,
-          visited_at: new Date().toISOString(),
+          visited_at: visitedAt,
           trip_id: activeTrip.id,
           trip_title: activeTrip.title,
         };
         markPlaceAsVisited(record);
+      } else if (!isVisited) {
+        unmarkPlaceAsVisited(dest.place_id);
       }
 
       const updated: Trip = {
         ...activeTrip,
         destinations: (activeTrip.destinations ?? []).map((d) =>
           d.id === dest.id
-            ? { ...d, is_visited: dest.is_visited, visited_at: dest.is_visited ? new Date().toISOString() : null }
+            ? { ...d, is_visited: isVisited, visited_at: visitedAt }
             : d
         ),
       };
@@ -524,52 +466,9 @@ export default function TripPlannerView() {
     { id: "notifications", label: "Reminders & Alerts", icon: <Bell className="w-4 h-4" /> },
   ];
 
-  // ─────────────────────────── Auth Protection ───────────────────────────
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#f6f1e8] flex items-center justify-center p-6 text-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-[#c99a43]" />
-          <p className="text-base font-bold text-[#123b26]">Loading Trip Planner…</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-[#f6f1e8] flex items-center justify-center px-4 py-16">
-        <div className="bg-white rounded-2xl border border-[#c99a43]/30 shadow-md max-w-lg w-full p-8 sm:p-10 text-center">
-          <div className="w-16 h-16 rounded-full bg-[#f6f1e8] text-[#c99a43] flex items-center justify-center mx-auto mb-6 border border-[#c99a43]/40">
-            <Navigation className="w-8 h-8 text-[#123b26]" />
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-[#123b26]">
-            Sign in to access Trip Planner
-          </h2>
-          <p className="mt-3 text-base text-[#123b26]/70 leading-relaxed">
-            The personalized Trip Planner is available exclusively to signed-in explorers. Choose hidden gems across Sri Lanka, measure live distances from your location, plan day-by-day itineraries, and map your journeys.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href="/auth/sign-in?redirect=/trips"
-              className="inline-flex items-center justify-center bg-[#c99a43] hover:bg-[#b58735] text-[#0b2417] font-bold px-6 py-3 rounded-lg text-sm transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/auth/sign-up?redirect=/trips"
-              className="inline-flex items-center justify-center bg-white border border-[#c99a43]/60 hover:bg-[#f6f1e8] text-[#123b26] font-bold px-6 py-3 rounded-lg text-sm transition-colors"
-            >
-              Create an Account
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#f6f1e8]">
+    <div className="trip-planner-root min-h-screen bg-[#f6f1e8]">
+      <style>{SECONDARY_TEXT_CSS}</style>
       {/* Header */}
       <div className="bg-[#123b26] text-white px-4 sm:px-6 py-6 border-b border-[#c99a43]/30">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

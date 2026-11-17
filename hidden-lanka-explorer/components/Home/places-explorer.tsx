@@ -5,17 +5,24 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import PlaceCard from "@/components/places/place-card";
-import { places } from "@/lib/demo-data";
+import type { PlaceCardProps } from "@/components/places/place-card";
+import { createClient } from "@/lib/supabase/client";
 
 /* ==========================================================================
    Places explorer
    Same system as the seasonal guide and category explorer: Arial, gold accent,
    heading lines that fly in from the right, cards that arrive from the right.
-   PlaceCard itself is untouched. Sorting logic is unchanged.
+   Lists are ranked by engagement, recency, or distance.
    ========================================================================== */
 
 type Tab = "Trending" | "Newest" | "Nearby";
 const TABS: Tab[] = ["Trending", "Newest", "Nearby"];
+
+type PlaceInteractionCount = {
+  place_id: string;
+  like_count: number | string;
+  review_count: number | string;
+};
 
 const STYLES = `
 .pe-root{
@@ -116,23 +123,116 @@ function Line({ i, children, className = "" }: { i: number; children: ReactNode;
 
 export default function PlacesExplorer() {
   const [tab, setTab] = useState<Tab>("Trending");
+  const [places, setPlaces] = useState<PlaceCardProps["place"][]>([]);
+  const [placesLoading, setPlacesLoading] = useState(true);
+  const [placesError, setPlacesError] = useState<string | null>(null);
   const [switched, setSwitched] = useState(false); // first load flies in from far away, tab changes are quicker
   const [inView, setInView] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPlaces() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("places")
+          .select("*")
+          .in("status", ["approved", "published"])
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        const statsByPlace = new Map<
+          string,
+          { like_count: number; review_count: number }
+        >();
+        if (data?.length) {
+          const { data: stats, error: statsError } = await supabase.rpc(
+            "get_public_place_interaction_counts",
+            { place_ids: data.map((place) => String(place.id)) }
+          );
+          if (statsError) throw statsError;
+          ((stats ?? []) as PlaceInteractionCount[]).forEach((stat) => {
+            statsByPlace.set(String(stat.place_id), {
+              like_count: Number(stat.like_count),
+              review_count: Number(stat.review_count),
+            });
+          });
+        }
+
+        const loadedPlaces: PlaceCardProps["place"][] = (data ?? []).map(
+          (place) => {
+            const stats = statsByPlace.get(String(place.id));
+            return {
+              ...place,
+              id: String(place.id),
+              name: String(place.name || "Unnamed place"),
+              slug: String(place.slug || place.id),
+              category:
+                place.category_name ?? place.category ?? "Hidden Gem",
+              image: place.hero_image_url ?? place.image_url ?? null,
+              rating:
+                typeof place.rating_avg === "number" && place.rating_avg > 0
+                  ? place.rating_avg
+                  : null,
+              likes: stats?.like_count ?? 0,
+              reviews: stats?.review_count ?? 0,
+            };
+          }
+        );
+
+        if (!cancelled) setPlaces(loadedPlaces);
+      } catch (error) {
+        console.error("Failed to load place explorer data:", error);
+        if (!cancelled) {
+          setPlacesError("Places and interaction counts could not be loaded.");
+        }
+      } finally {
+        if (!cancelled) setPlacesLoading(false);
+      }
+    }
+
+    void loadPlaces();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const sortedPlaces = useMemo(() => {
     const data = [...places];
+    const engagement = (place: PlaceCardProps["place"]) =>
+      (place.likes ?? 0) + (place.reviews ?? 0);
+    const compareEngagement = (
+      a: PlaceCardProps["place"],
+      b: PlaceCardProps["place"]
+    ) =>
+      engagement(b) - engagement(a) ||
+      (b.reviews ?? 0) - (a.reviews ?? 0) ||
+      (b.likes ?? 0) - (a.likes ?? 0);
 
     if (tab === "Trending") {
-      return data.sort((a, b) => b.likes - a.likes);
+      return data.sort(compareEngagement);
     }
 
     if (tab === "Newest") {
-      return data.reverse();
+      return data.sort(
+        (a, b) =>
+          (Date.parse(b.created_at ?? "") || 0) -
+            (Date.parse(a.created_at ?? "") || 0) ||
+          compareEngagement(a, b)
+      );
     }
 
-    return data;
-  }, [tab]);
+    return data.sort(
+      (a, b) =>
+        (a.distance_from_colombo ?? Number.POSITIVE_INFINITY) -
+          (b.distance_from_colombo ?? Number.POSITIVE_INFINITY) ||
+        compareEngagement(a, b)
+    );
+  }, [tab, places]);
+  const visiblePlaces = sortedPlaces.slice(0, 4);
 
   // Start the animations the first time the section is on screen
   useEffect(() => {
@@ -207,24 +307,34 @@ export default function PlacesExplorer() {
           </div>
 
           <div className="pe-count" aria-live="polite">
-            {sortedPlaces.length} <span>places</span>
+            {visiblePlaces.length} <span>of {sortedPlaces.length} places</span>
           </div>
         </div>
 
         <div className="pe-grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {sortedPlaces.map((place, i) => (
-            <div
-              key={`${tab}-${place.id}`}
-              className="pe-item"
-              style={{
-                ["--i" as string]: Math.min(i, 8),
-                ["--base" as string]: switched ? "0s" : ".35s",
-                ["--dist" as string]: switched ? "90px" : "min(75vw,720px)",
-              }}
-            >
-              <PlaceCard place={place} />
-            </div>
-          ))}
+          {placesLoading ? (
+            <p className="text-sm text-[#5f6d66]" role="status">
+              Loading places…
+            </p>
+          ) : placesError ? (
+            <p className="text-sm text-red-700" role="alert">
+              {placesError}
+            </p>
+          ) : (
+            visiblePlaces.map((place, i) => (
+              <div
+                key={`${tab}-${place.id}`}
+                className="pe-item"
+                style={{
+                  ["--i" as string]: Math.min(i, 8),
+                  ["--base" as string]: switched ? "0s" : ".35s",
+                  ["--dist" as string]: switched ? "90px" : "min(75vw,720px)",
+                }}
+              >
+                <PlaceCard place={place} />
+              </div>
+            ))
+          )}
         </div>
       </div>
     </section>

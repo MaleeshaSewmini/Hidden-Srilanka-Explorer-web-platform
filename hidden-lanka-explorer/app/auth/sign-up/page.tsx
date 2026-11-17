@@ -1,8 +1,6 @@
-
 "use client";
 
 import Link from "next/link";
-import { Roboto } from "next/font/google";
 import { useEffect, useState, type FormEvent } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Eye, EyeOff } from "lucide-react";
@@ -19,32 +17,25 @@ function getPasswordStrength(pass: string) {
   const hasSpecial = /[^A-Za-z0-9]/.test(pass);
   const isLong = pass.length >= 12;
 
-
   if (hasLength) score++;
   if (hasMixedCase) score++;
   if (hasNumber) score++;
   if (hasSpecial || isLong) score++;
 
   if (pass.length < 8) {
-    return { score: 1, label: "Weak", color: "#e05345" };
+    return { score: 1, label: "Weak", color: "#c93c2e" };
   }
 
   if (score <= 1) {
-    return { score: 1, label: "Weak", color: "#e05345" };
+    return { score: 1, label: "Weak", color: "#c93c2e" };
   } else if (score === 2) {
-    return { score: 2, label: "Fair", color: "#e5a53d" };
+    return { score: 2, label: "Fair", color: "#d68a14" };
   } else if (score === 3) {
-    return { score: 3, label: "Good", color: "#589c67" };
+    return { score: 3, label: "Good", color: "#3f8a55" };
   } else {
-    return { score: 4, label: "Strong", color: "#244d37" };
+    return { score: 4, label: "Strong", color: "#1f5a3a" };
   }
 }
-
-const roboto = Roboto({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -171,11 +162,7 @@ export default function SignUpPage() {
     }
 
     if (photo) {
-      const allowedTypes = [
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-      ];
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 
       if (!allowedTypes.includes(photo.type)) {
         showMessage("Please choose a JPG, PNG, or WebP image.");
@@ -324,16 +311,16 @@ export default function SignUpPage() {
   }
 
   return (
-    <main className={`page ${roboto.className}`}>
+    <main className="page">
       <section className="card">
         {/* Left hero section */}
         <aside className="hero">
           <Link href="/" className="brand" aria-label="Hidden Sri Lanka home">
-           
+            Hidden Sri Lanka
           </Link>
 
           <div className="hero-content">
-            <p className="hero-kicker">YOUR ISLAND. YOUR WAY.</p>
+            <p className="hero-kicker">Your island. Your way.</p>
 
             <h1>
               Meet the island
@@ -342,15 +329,15 @@ export default function SignUpPage() {
             </h1>
 
             <p className="hero-description">
-              Build your explorer profile and share the places that make
-              Sri Lanka unforgettable.
+              Build your explorer profile and share the places that make Sri
+              Lanka unforgettable.
             </p>
 
-            <div className="hero-features">
-              <span>Discover hidden places</span>
-              <span>Share local experiences</span>
-              <span>Connect with explorers</span>
-            </div>
+            <ul className="hero-features">
+              <li>Discover hidden places</li>
+              <li>Share local experiences</li>
+              <li>Connect with explorers</li>
+            </ul>
           </div>
 
           <small className="hero-footer">
@@ -364,295 +351,303 @@ export default function SignUpPage() {
             <span aria-hidden="true">←</span> Back to explore
           </Link>
 
-          <p className="kicker">CREATE YOUR EXPLORER PROFILE</p>
-
-          <h2>Let&apos;s get to know you</h2>
-
-          <p className="intro">
-            A few details help other explorers discover what you love.
-          </p>
+          <header className="form-header">
+            <h2>Create your account</h2>
+            <p className="intro">
+              A few details help other explorers discover what you love.
+            </p>
+          </header>
 
           <form onSubmit={handleSubmit} noValidate>
-            {/* Profile photo */}
-            <label className="photo-picker">
-              <span className="avatar">
-                {preview ? (
-                  <img src={preview} alt="Profile photo preview" />
-                ) : (
-                  <span aria-hidden="true">＋</span>
-                )}
-              </span>
+            {/* Section: Account */}
+            <div className="section">
+              <h3 className="section-title">Account details</h3>
 
-              <span className="photo-text">
-                <strong>
-                  {photo ? "Change profile photo" : "Add a profile photo"}
-                </strong>
-                <small>JPG, PNG, or WebP · up to 5 MB</small>
-              </span>
-
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                aria-label="Choose a profile photo"
-                onChange={(event) =>
-                  setPhoto(event.target.files?.[0] ?? null)
-                }
-              />
-            </label>
-
-            {/* Username and display name */}
-            <div className="two-columns">
-              <label className="field">
-                Username
-                <input
-                  required
-                  minLength={3}
-                  maxLength={23}
-                  autoComplete="username"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  placeholder="e.g. explorer123"
-                />
-                <span className="field-hint">
-                  Letters, numbers, and underscores
-                </span>
-              </label>
-
-              <label className="field">
-                Display name
-                <input
-                  required
-                  maxLength={60}
-                  autoComplete="name"
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="Your name"
-                />
-              </label>
-            </div>
-
-            {/* Email */}
-            <label className="field">
-              Email address
-              <input
-                required
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-              />
-            </label>
-
-            {/* Password */}
-            <label className="field">
-              Password
-              <div className="password-input-wrapper">
-                <input
-                  required
-                  type={showPassword ? "text" : "password"}
-                  minLength={8}
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="At least 8 characters"
-                />
-                <button
-                  type="button"
-                  className="password-toggle"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setShowPassword((prev) => !prev);
-                  }}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  title={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <EyeOff size={19} strokeWidth={2} />
+              {/* Profile photo */}
+              <label className="photo-picker">
+                <span className="avatar">
+                  {preview ? (
+                    <img src={preview} alt="Profile photo preview" />
                   ) : (
-                    <Eye size={19} strokeWidth={2} />
+                    <span aria-hidden="true">＋</span>
                   )}
-                </button>
-              </div>
-
-              {/* Password strength line */}
-              <div className="strength-line-track" aria-hidden="true">
-                <div
-                  className="strength-line-fill"
-                  style={{
-                    width: `${password ? (strength.score / 4) * 100 : 0}%`,
-                    backgroundColor: strength.color,
-                  }}
-                />
-              </div>
-
-              <div className="password-hint-row">
-                <span className="field-hint">
-                  Use at least 8 characters.
                 </span>
-                {password && (
-                  <span
-                    className="strength-label"
-                    style={{ color: strength.color }}
-                  >
-                    {strength.label}
-                  </span>
-                )}
-              </div>
-            </label>
 
-            {/* Bio */}
-            <label className="field">
-              Short bio <span className="optional">Optional</span>
-              <textarea
-                maxLength={180}
-                value={bio}
-                onChange={(event) => setBio(event.target.value)}
-                placeholder="Tell the community what you love about exploring..."
-              />
-              <span className="character-count">
-                {bio.length}/180 characters
-              </span>
-            </label>
+                <span className="photo-text">
+                  <strong>
+                    {photo ? "Change profile photo" : "Add a profile photo"}
+                  </strong>
+                  <small>JPG, PNG, or WebP, up to 5 MB</small>
+                </span>
 
-            {/* District and travel style */}
-            <div className="two-columns">
-              <label className="field">
-                Your district
-                <select
-                  value={district}
-                  onChange={(event) => setDistrict(event.target.value)}
-                >
-                  <option value="">Choose a district</option>
-                  {districts.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="field">
-                Travel style
-                <select
-                  value={travelStyle}
-                  onChange={(event) => setTravelStyle(event.target.value)}
-                >
-                  <option value="">Choose your style</option>
-                  <option value="Hiking">Hiking</option>
-                  <option value="Adventure">Adventure</option>
-                  <option value="Relaxing">Relaxing</option>
-                  <option value="Culture">Culture</option>
-                  <option value="Wildlife">Wildlife</option>
-                  <option value="Road trips">Road trips</option>
-                </select>
-              </label>
-            </div>
-
-            {/* Favorite categories */}
-            <fieldset>
-              <legend>
-                Favorite places{" "}
-                <span className="optional">Choose any</span>
-              </legend>
-
-              <p className="fieldset-description">
-                What kind of places do you enjoy discovering?
-              </p>
-
-              <div className="chips">
-                {categories.map((item) => {
-                  const selected = favoriteCategories.includes(item);
-
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      className={selected ? "chip selected" : "chip"}
-                      aria-pressed={selected}
-                      onClick={() =>
-                        toggleItem(
-                          item,
-                          favoriteCategories,
-                          setFavoriteCategories,
-                        )
-                      }
-                    >
-                      <span className="chip-check" aria-hidden="true">
-                        {selected ? "✓ " : ""}
-                      </span>
-                      {item}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            {/* Experience and website */}
-            <div className="two-columns">
-              <label className="field">
-                Experience level
-                <select
-                  value={experienceLevel}
-                  onChange={(event) =>
-                    setExperienceLevel(event.target.value)
-                  }
-                >
-                  <option value="">Choose level</option>
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Experienced">Experienced</option>
-                </select>
-              </label>
-
-              <label className="field">
-                Website <span className="optional">Optional</span>
                 <input
-                  type="url"
-                  autoComplete="url"
-                  value={websiteUrl}
-                  onChange={(event) => setWebsiteUrl(event.target.value)}
-                  placeholder="https://example.com"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  aria-label="Choose a profile photo"
+                  onChange={(event) =>
+                    setPhoto(event.target.files?.[0] ?? null)
+                  }
                 />
               </label>
+
+              <div className="two-columns">
+                <label className="field">
+                  Username
+                  <input
+                    required
+                    minLength={3}
+                    maxLength={24}
+                    autoComplete="username"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="e.g. explorer123"
+                  />
+                  <span className="field-hint">
+                    Letters, numbers, and underscores
+                  </span>
+                </label>
+
+                <label className="field">
+                  Display name
+                  <input
+                    required
+                    maxLength={60}
+                    autoComplete="name"
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    placeholder="Your name"
+                  />
+                </label>
+              </div>
+
+              <label className="field">
+                Email address
+                <input
+                  required
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                />
+              </label>
+
+              <label className="field">
+                Password
+                <div className="password-input-wrapper">
+                  <input
+                    required
+                    type={showPassword ? "text" : "password"}
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="At least 8 characters"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setShowPassword((prev) => !prev);
+                    }}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={22} strokeWidth={2} />
+                    ) : (
+                      <Eye size={22} strokeWidth={2} />
+                    )}
+                  </button>
+                </div>
+
+                <div className="strength-line-track" aria-hidden="true">
+                  <div
+                    className="strength-line-fill"
+                    style={{
+                      width: `${password ? (strength.score / 4) * 100 : 0}%`,
+                      backgroundColor: strength.color,
+                    }}
+                  />
+                </div>
+
+                <div className="password-hint-row">
+                  <span className="field-hint">Use at least 8 characters.</span>
+                  {password && (
+                    <span
+                      className="strength-label"
+                      style={{ color: strength.color }}
+                    >
+                      {strength.label}
+                    </span>
+                  )}
+                </div>
+              </label>
             </div>
 
-            {/* Languages */}
-            <fieldset>
-              <legend>Languages you speak</legend>
+            {/* Section: Profile */}
+            <div className="section">
+              <h3 className="section-title">About you</h3>
 
-              <p className="fieldset-description">
-                Help other explorers know which languages you speak.
-              </p>
+              <label className="field">
+                <span>
+                  Short bio <span className="optional">Optional</span>
+                </span>
+                <textarea
+                  maxLength={180}
+                  value={bio}
+                  onChange={(event) => setBio(event.target.value)}
+                  placeholder="Tell the community what you love about exploring..."
+                />
+                <span className="character-count">
+                  {bio.length}/180 characters
+                </span>
+              </label>
 
-              <div className="chips">
-                {languages.map((item) => {
-                  const selected = selectedLanguages.includes(item);
+              <div className="two-columns">
+                <label className="field">
+                  Your district
+                  <select
+                    value={district}
+                    onChange={(event) => setDistrict(event.target.value)}
+                  >
+                    <option value="">Choose a district</option>
+                    {districts.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-                  return (
-                    <button
-                      key={item}
-                      type="button"
-                      className={selected ? "chip selected" : "chip"}
-                      aria-pressed={selected}
-                      onClick={() =>
-                        toggleItem(
-                          item,
-                          selectedLanguages,
-                          setSelectedLanguages,
-                        )
-                      }
-                    >
-                      <span className="chip-check" aria-hidden="true">
-                        {selected ? "✓ " : ""}
-                      </span>
-                      {item}
-                    </button>
-                  );
-                })}
+                <label className="field">
+                  Travel style
+                  <select
+                    value={travelStyle}
+                    onChange={(event) => setTravelStyle(event.target.value)}
+                  >
+                    <option value="">Choose your style</option>
+                    <option value="Hiking">Hiking</option>
+                    <option value="Adventure">Adventure</option>
+                    <option value="Relaxing">Relaxing</option>
+                    <option value="Culture">Culture</option>
+                    <option value="Wildlife">Wildlife</option>
+                    <option value="Road trips">Road trips</option>
+                  </select>
+                </label>
               </div>
-            </fieldset>
+
+              <div className="two-columns">
+                <label className="field">
+                  Experience level
+                  <select
+                    value={experienceLevel}
+                    onChange={(event) =>
+                      setExperienceLevel(event.target.value)
+                    }
+                  >
+                    <option value="">Choose level</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Experienced">Experienced</option>
+                  </select>
+                </label>
+
+                <label className="field">
+                  <span>
+                    Website <span className="optional">Optional</span>
+                  </span>
+                  <input
+                    type="url"
+                    autoComplete="url"
+                    value={websiteUrl}
+                    onChange={(event) => setWebsiteUrl(event.target.value)}
+                    placeholder="https://example.com"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Section: Preferences */}
+            <div className="section">
+              <h3 className="section-title">Your interests</h3>
+
+              <fieldset>
+                <legend>
+                  Favorite places <span className="optional">Choose any</span>
+                </legend>
+
+                <p className="fieldset-description">
+                  What kind of places do you enjoy discovering?
+                </p>
+
+                <div className="chips">
+                  {categories.map((item) => {
+                    const selected = favoriteCategories.includes(item);
+
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        className={selected ? "chip selected" : "chip"}
+                        aria-pressed={selected}
+                        onClick={() =>
+                          toggleItem(
+                            item,
+                            favoriteCategories,
+                            setFavoriteCategories,
+                          )
+                        }
+                      >
+                        <span className="chip-check" aria-hidden="true">
+                          {selected ? "✓ " : ""}
+                        </span>
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>Languages you speak</legend>
+
+                <p className="fieldset-description">
+                  Help other explorers know which languages you speak.
+                </p>
+
+                <div className="chips">
+                  {languages.map((item) => {
+                    const selected = selectedLanguages.includes(item);
+
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        className={selected ? "chip selected" : "chip"}
+                        aria-pressed={selected}
+                        onClick={() =>
+                          toggleItem(
+                            item,
+                            selectedLanguages,
+                            setSelectedLanguages,
+                          )
+                        }
+                      >
+                        <span className="chip-check" aria-hidden="true">
+                          {selected ? "✓ " : ""}
+                        </span>
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            </div>
 
             {/* Feedback */}
             {message && (
@@ -676,24 +671,17 @@ export default function SignUpPage() {
                   Creating your profile...
                 </>
               ) : (
-                <>
-                  Create explorer profile
-                  <span className="submit-arrow" aria-hidden="true">
-                    →
-                  </span>
-                </>
+                "Create account"
               )}
             </button>
 
             <p className="privacy-note">
-              Your journey starts here. You can update your profile details
-              later.
+              You can update your profile details at any time.
             </p>
           </form>
 
           <p className="signin">
-            Already have an account?{" "}
-            <Link href="/auth/sign-in">  Sign in</Link>
+            Already have an account? <Link href="/auth/sign-in">Sign in</Link>
           </p>
         </div>
       </section>
@@ -704,191 +692,203 @@ export default function SignUpPage() {
           display: grid;
           place-items: center;
           padding: 40px 24px;
-          background: #f2f4ed;
-          color: #20372b;
-          font-family: inherit;
+          background: #eef1ec;
+          color: #1b2e24;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 16px;
           -webkit-font-smoothing: antialiased;
         }
 
-        .card {
-          width: min(100%, 1160px);
-          display: grid;
-          grid-template-columns: 0.82fr 1.18fr;
-          background: #ffffff;
-          border: 1px solid #e7ece5;
-          border-radius: 24px;
-          overflow: hidden;
-          box-shadow: 0 22px 70px #18392716;
-          animation: card-enter 0.6s ease-out both;
+        .page :global(*) {
+          font-family: Arial, Helvetica, sans-serif;
         }
 
+        .card {
+          width: min(100%, 1240px);
+          display: grid;
+          grid-template-columns: 0.8fr 1.2fr;
+          background: #ffffff;
+          border: 1px solid #dfe6dd;
+          border-radius: 20px;
+          overflow: hidden;
+          box-shadow: 0 24px 70px rgba(24, 57, 39, 0.14);
+          animation: card-enter 0.5s ease-out both;
+        }
+
+        /* ---------- Hero ---------- */
         .hero {
-          padding: 42px 38px;
-          min-height: 700px;
-          color: white;
+          padding: 48px 44px;
+          color: #ffffff;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          gap: 35px;
+          gap: 40px;
           background:
-            linear-gradient(180deg, #183a2cce, #173426ed),
+            linear-gradient(180deg, rgba(20, 52, 38, 0.86), rgba(18, 46, 33, 0.95)),
             url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=85")
               center / cover;
         }
 
         .brand {
           width: fit-content;
-          color: white;
-          font-size: 15px;
-          font-weight: 800;
-          letter-spacing: 2.5px;
+          color: #ffffff;
+          font-size: 20px;
+          font-weight: 700;
+          letter-spacing: 0.3px;
           text-decoration: none;
         }
 
-        .brand span {
-          color: #e5c77b;
-        }
-
-        .hero-content {
-          animation: content-enter 0.7s ease-out 0.1s both;
-        }
-
-        .hero-kicker,
-        .kicker {
-          font-size: 20px;
-          font-weight: 800;
-          letter-spacing: 1.8px;
-          line-height: 5;
-        }
-
         .hero-kicker {
-          color: #e5c77b;
-        }
-
-        .kicker {
-          color: #b08b43;
-          margin: 0 0 10px;
+          margin: 0;
+          color: #e8cf8a;
+          font-size: 17px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
         }
 
         .hero h1 {
-          font-size: clamp(36px, 3.5vw, 48px);
-          font-weight: 500;
+          font-size: clamp(34px, 3.2vw, 46px);
+          font-weight: 700;
           line-height: 1.15;
-          letter-spacing: -1px;
-          margin: 18px 0;
+          letter-spacing: -0.8px;
+          margin: 16px 0 20px;
         }
 
         .hero-description {
-          color: #e0e9e2;
-          line-height: 1.85;
-          font-size: 16px;
-          max-width: 330px;
+          margin: 0;
+          color: #e6eee8;
+          line-height: 1.7;
+          font-size: 18px;
+          max-width: 400px;
         }
 
         .hero-features {
+          list-style: none;
+          padding: 0;
+          margin: 34px 0 0;
           display: grid;
-          gap: 14px;
-          margin-top: 30px;
+          gap: 16px;
         }
 
-        .hero-features span {
+        .hero-features li {
           display: flex;
           align-items: center;
-          gap: 10px;
-          color: #edf3ed;
+          gap: 12px;
+          color: #f2f6f2;
+          font-size: 16px;
+          line-height: 1.5;
+        }
+
+        .hero-features li::before {
+          content: "✓";
+          display: grid;
+          place-items: center;
+          flex: 0 0 28px;
+          width: 28px;
+          height: 28px;
+          border: 1px solid rgba(232, 207, 138, 0.6);
+          border-radius: 50%;
+          color: #e8cf8a;
+          font-size: 14px;
+        }
+
+        .hero-footer {
+          color: #d3dfd6;
           font-size: 14px;
           line-height: 1.6;
         }
 
-        .hero-features span::before {
-          content: "✓";
-          display: grid;
-          place-items: center;
-          flex: 0 0 23px;
-          width: 23px;
-          height: 23px;
-          border: 1px solid #e5c77b80;
-          border-radius: 50%;
-          color: #e5c77b;
-          font-size: 12px;
-        }
-
-        .hero-footer {
-          color: #d7e1d8;
-          font-size: 13px;
-          line-height: 1.7;
-        }
-
+        /* ---------- Form panel ---------- */
         .form-panel {
-          padding: 20px clamp(24px, 4.5vw, 58px);
+          padding: 36px clamp(24px, 4.5vw, 64px) 44px;
           min-width: 0;
-          animation: content-enter 0.6s ease-out 0.1s both;
         }
 
         .back {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          margin-bottom: 25px;
-          color: #65776c;
+          margin-bottom: 28px;
+          color: #55675c;
           text-decoration: none;
           font-size: 15px;
-          line-height: 1.6;
-          transition:
-            color 0.2s ease,
-            transform 0.2s ease;
+          line-height: 1.5;
+          transition: color 0.2s ease;
         }
 
         .back:hover {
-          color: #244d37;
-          transform: translateX(-3px);
+          color: #1f5a3a;
+          text-decoration: underline;
+          text-underline-offset: 4px;
         }
 
-        .form-panel h2 {
-          font-size: clamp(28px, 3vw, 36px);
-          font-weight: 500;
-          line-height: 1.25;
-          letter-spacing: -0.7px;
-          margin: 8px 0 12px;
+        .form-header {
+          margin-bottom: 32px;
+        }
+
+        .form-header h2 {
+          font-size: clamp(28px, 2.8vw, 36px);
+          font-weight: 700;
+          line-height: 1.2;
+          letter-spacing: -0.6px;
+          margin: 0 0 12px;
+          color: #14281d;
         }
 
         .intro {
-          color: #030303;
-          font-size: 18px;
-          line-height: 1.8;
-          margin: 0 0 28px;
+          margin: 0;
+          color: #3e4f45;
+          font-size: 17px;
+          line-height: 1.6;
         }
 
         form {
           display: grid;
-          gap: 20px;
+          gap: 32px;
+        }
+
+        .section {
+          display: grid;
+          gap: 22px;
+          padding-top: 28px;
+          border-top: 1px solid #e3e9e1;
+        }
+
+        .section:first-of-type {
+          padding-top: 0;
+          border-top: 0;
+        }
+
+        .section-title {
+          margin: 0;
+          font-size: 20px;
+          font-weight: 700;
+          color: #14281d;
+          line-height: 1.3;
         }
 
         .photo-picker {
           position: relative;
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 18px;
           cursor: pointer;
-          margin-bottom: 4px;
-          padding: 13px;
-          border: 1px dashed #d6e0d4;
+          padding: 16px;
+          border: 1px dashed #c3d0c1;
           border-radius: 12px;
-          background: #fbfcf9;
+          background: #f9fbf8;
           transition:
-            background 0.25s ease,
-            border-color 0.25s ease,
-            transform 0.25s ease;
+            background 0.2s ease,
+            border-color 0.2s ease;
         }
 
         .photo-picker:hover {
-          background: #f2f6ef;
-          border-color: #77957b;
-          transform: translateY(-2px);
+          background: #f0f5ee;
+          border-color: #6f8f74;
         }
 
         .photo-picker:focus-within {
-          outline: 3px solid #66836b55;
+          outline: 3px solid rgba(63, 110, 80, 0.4);
           outline-offset: 3px;
         }
 
@@ -905,21 +905,16 @@ export default function SignUpPage() {
         }
 
         .avatar {
-          flex: 0 0 64px;
-          width: 64px;
-          height: 64px;
+          flex: 0 0 72px;
+          width: 72px;
+          height: 72px;
           display: grid;
           place-items: center;
           overflow: hidden;
           border-radius: 50%;
-          background: #edf2eb;
-          color: #58735d;
-          font-size: 30px;
-          transition: transform 0.3s ease;
-        }
-
-        .photo-picker:hover .avatar {
-          transform: scale(1.05);
+          background: #e6eee4;
+          color: #3f6a4b;
+          font-size: 32px;
         }
 
         .avatar img {
@@ -929,7 +924,7 @@ export default function SignUpPage() {
         }
 
         .photo-text {
-          min-width: 2;
+          min-width: 0;
         }
 
         .photo-picker strong,
@@ -938,31 +933,33 @@ export default function SignUpPage() {
         }
 
         .photo-picker strong {
-          font-size: 15px;
+          font-size: 16px;
           font-weight: 700;
-          line-height: 1.6;
+          line-height: 1.5;
+          color: #14281d;
         }
 
         .photo-picker small {
-          margin-top: 5px;
-          color: #080806;
-          font-size: 15px;
-          line-height: 1.6;
+          margin-top: 4px;
+          color: #4a5a50;
+          font-size: 14px;
+          line-height: 1.5;
         }
 
         .two-columns {
           display: grid;
-          grid-template-columns: repeat(1, minmax(0, 1fr));
-          gap: 18px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 20px;
         }
 
         .field {
           display: grid;
-          gap: 9px;
+          gap: 10px;
           min-width: 0;
-          font-size: 17px;
-          font-weight: 600;
-          line-height: 1.5;
+          font-size: 16px;
+          font-weight: 700;
+          line-height: 1.4;
+          color: #14281d;
         }
 
         .field input,
@@ -970,40 +967,38 @@ export default function SignUpPage() {
         .field textarea {
           box-sizing: border-box;
           width: 100%;
-          min-height: 49px;
-          padding: 12px 14px;
-          border: 1px solid #dfe5df;
-          border-radius: 9px;
+          min-height: 52px;
+          padding: 14px 16px;
+          border: 1px solid #c9d3c8;
+          border-radius: 10px;
           outline: none;
           background: #ffffff;
-          color: #20372b;
-          font-family: inherit;
-          font-size: 15px;
+          color: #14281d;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 16px;
           font-weight: 400;
           transition:
             border-color 0.2s ease,
-            box-shadow 0.2s ease,
-            background 0.2s ease;
+            box-shadow 0.2s ease;
         }
 
         .field input::placeholder,
         .field textarea::placeholder {
-          color: #929d94;
+          color: #7b877f;
           opacity: 1;
         }
 
         .field input:hover,
         .field select:hover,
         .field textarea:hover {
-          border-color: #b8c8b9;
+          border-color: #8fa793;
         }
 
         .field input:focus,
         .field select:focus,
         .field textarea:focus {
-          border-color: #66836b;
-          background: #fdfefc;
-          box-shadow: 0 0 0 4px #66836b20;
+          border-color: #2f6b47;
+          box-shadow: 0 0 0 4px rgba(47, 107, 71, 0.18);
         }
 
         .field select {
@@ -1011,16 +1006,16 @@ export default function SignUpPage() {
         }
 
         .field textarea {
-          min-height: 100px;
+          min-height: 120px;
           resize: vertical;
-          line-height: 1.7;
+          line-height: 1.6;
         }
 
         .field-hint {
-          color: #758178;
-          font-size: 15px;
-          font-weight: 500;
-          line-height: 1.6;
+          color: #55655b;
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 1.5;
         }
 
         .password-input-wrapper {
@@ -1031,12 +1026,12 @@ export default function SignUpPage() {
         }
 
         .password-input-wrapper input {
-          padding-right: 46px;
+          padding-right: 56px;
         }
 
         .password-toggle {
           position: absolute;
-          right: 12px;
+          right: 10px;
           top: 50%;
           transform: translateY(-50%);
           display: flex;
@@ -1044,37 +1039,36 @@ export default function SignUpPage() {
           justify-content: center;
           background: transparent;
           border: none;
-          padding: 6px;
-          color: #758178;
+          padding: 8px;
+          color: #55655b;
           cursor: pointer;
-          border-radius: 6px;
+          border-radius: 8px;
           transition:
             color 0.2s ease,
             background 0.2s ease;
         }
 
         .password-toggle:hover {
-          color: #244d37;
-          background: #f0f4ee;
+          color: #1f5a3a;
+          background: #eef3ec;
         }
 
         .password-toggle:focus-visible {
-          outline: 2px solid #66836b;
+          outline: 3px solid #2f6b47;
           outline-offset: 1px;
         }
 
         .strength-line-track {
           width: 100%;
-          height: 4px;
-          background: #e8eee7;
-          border-radius: 4px;
+          height: 6px;
+          background: #e3e9e1;
+          border-radius: 6px;
           overflow: hidden;
-          margin-top: -2px;
         }
 
         .strength-line-fill {
           height: 100%;
-          border-radius: 4px;
+          border-radius: 6px;
           transition:
             width 0.3s ease,
             background-color 0.3s ease;
@@ -1084,27 +1078,25 @@ export default function SignUpPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          min-height: 18px;
+          min-height: 22px;
         }
 
         .strength-label {
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 700;
-          letter-spacing: 0.3px;
-          transition: color 0.3s ease;
         }
 
         .character-count {
-          color: #758178;
+          color: #55655b;
           text-align: right;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 400;
         }
 
         .optional {
-          color: #4d4e4d;
-          font-size: 15px;
-          font-weight: 500;
+          color: #55655b;
+          font-size: 14px;
+          font-weight: 400;
           margin-left: 6px;
         }
 
@@ -1116,63 +1108,61 @@ export default function SignUpPage() {
         }
 
         legend {
-          font-size: 15px;
-          font-weight: 600;
-          line-height: 1.6;
-          margin-bottom: 7px;
+          font-size: 16px;
+          font-weight: 700;
+          line-height: 1.4;
+          margin-bottom: 6px;
           padding: 0;
+          color: #14281d;
         }
 
         .fieldset-description {
-          margin: 0 0 12px;
-          color: #040b06;
+          margin: 0 0 14px;
+          color: #3e4f45;
           font-size: 15px;
-          line-height: 1.7;
+          line-height: 1.6;
+        }
+
+        fieldset + fieldset {
+          margin-top: 4px;
         }
 
         .chips {
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 12px;
         }
 
         .chip {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-height: 42px;
-          border: 1px solid #dfe5df;
-          border-radius: 24px;
+          min-height: 44px;
+          border: 1px solid #c9d3c8;
+          border-radius: 999px;
           background: #ffffff;
-          color: #516258;
-          padding: 9px 15px;
-          font-family: inherit;
-          font-size: 14px;
-          font-weight: 500;
+          color: #33463b;
+          padding: 10px 20px;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 15px;
+          font-weight: 400;
           cursor: pointer;
           transition:
             background 0.2s ease,
             color 0.2s ease,
-            border-color 0.2s ease,
-            transform 0.2s ease,
-            box-shadow 0.2s ease;
+            border-color 0.2s ease;
         }
 
         .chip:hover {
-          border-color: #78957c;
-          background: #f4f7f1;
-          transform: translateY(-2px);
+          border-color: #6f8f74;
+          background: #f2f6f0;
         }
 
         .chip.selected {
-          border-color: #315c40;
-          background: #eaf1e9;
-          color: #244c34;
-          box-shadow: inset 0 0 0 1px #315c4018;
-        }
-
-        .chip:active {
-          transform: scale(0.97);
+          border-color: #1f5a3a;
+          background: #1f5a3a;
+          color: #ffffff;
+          font-weight: 700;
         }
 
         .chip-check {
@@ -1183,58 +1173,46 @@ export default function SignUpPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
+          gap: 12px;
           width: 100%;
-          min-height: 54px;
+          min-height: 56px;
           border: 0;
           border-radius: 10px;
-          padding: 14px 20px;
+          padding: 16px 24px;
           background: #ddd744;
           color: #090909;
-          font-family: inherit;
-          font-size: 16px;
+          font-family: Arial, Helvetica, sans-serif;
+          font-size: 17px;
           font-weight: 700;
-          line-height: 1.5;
+          line-height: 1.4;
           cursor: pointer;
-          box-shadow: 0 5px 14px #244d3720;
+          box-shadow: 0 5px 14px rgba(36, 77, 55, 0.2);
           transition:
-            background 0.25s ease,
-            transform 0.25s ease,
-            box-shadow 0.25s ease,
-            opacity 0.2s ease;
+            background 0.2s ease,
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
         }
 
         .submit:hover:not(:disabled) {
-         
+          background: #cfc93a;
           transform: translateY(-2px);
-          box-shadow: 0 9px 20px #244d3730;
+          box-shadow: 0 9px 20px rgba(36, 77, 55, 0.3);
         }
 
         .submit:active:not(:disabled) {
-          transform: translateY(0) scale(0.99);
+          transform: translateY(0);
         }
 
         .submit:disabled {
           opacity: 0.75;
           cursor: wait;
-          box-shadow: none;
-        }
-
-        .submit-arrow {
-          font-size: 21px;
-          line-height: 1;
-          transition: transform 0.2s ease;
-        }
-
-        .submit:hover:not(:disabled) .submit-arrow {
-          transform: translateX(4px);
         }
 
         .spinner {
-          width: 17px;
-          height: 17px;
-          border: 2px solid #ffffff70;
-          border-top-color: #ffffff;
+          width: 20px;
+          height: 20px;
+          border: 3px solid rgba(9, 9, 9, 0.25);
+          border-top-color: #090909;
           border-radius: 50%;
           animation: spin 0.7s linear infinite;
         }
@@ -1242,15 +1220,14 @@ export default function SignUpPage() {
         .message {
           display: flex;
           align-items: flex-start;
-          gap: 11px;
+          gap: 12px;
           margin: 0;
-          padding: 14px;
+          padding: 16px 18px;
           border: 1px solid;
           border-radius: 10px;
-          font-size: 14px;
-          line-height: 1.75;
+          font-size: 15px;
+          line-height: 1.6;
           overflow-wrap: anywhere;
-          animation: message-enter 0.3s ease-out both;
         }
 
         .message p {
@@ -1259,63 +1236,61 @@ export default function SignUpPage() {
         }
 
         .message.success {
-          border-color: #d6e5d5;
-          background: #f1f7ef;
-          color: #315d3b;
+          border-color: #b9d6bc;
+          background: #eef7ee;
+          color: #1f5a2f;
         }
 
         .message.error {
-          border-color: #f0d2cd;
-          background: #fff5f3;
-          color: #9b3025;
+          border-color: #efc3bd;
+          background: #fff3f1;
+          color: #9b2a1f;
         }
 
         .message-icon {
           display: grid;
           place-items: center;
-          flex: 0 0 22px;
-          width: 22px;
-          height: 22px;
-          border: 1px solid currentColor;
+          flex: 0 0 26px;
+          width: 26px;
+          height: 26px;
+          border: 1.5px solid currentColor;
           border-radius: 50%;
-          font-size: 12px;
-          font-weight: 800;
+          font-size: 14px;
+          font-weight: 700;
           line-height: 1;
           margin-top: 1px;
         }
 
         .privacy-note {
-          margin: -5px 0 0;
-          color: #0c0f0c;
+          margin: -14px 0 0;
+          color: #4a5a50;
           text-align: center;
-          font-size: 15px;
-          font-weight: 500;
-          line-height: 1.8;
+          font-size: 14px;
+          line-height: 1.6;
         }
 
         .signin {
           text-align: center;
-          color: #040705;
-          font-size: 15px;
-          line-height: 1.8;
-          margin: 24px 0 0;
+          color: #2c3d33;
+          font-size: 16px;
+          line-height: 1.6;
+          margin: 28px 0 0;
         }
 
-        .signin a {
-          color: #383e3a;
-          font-weight: 900;
-          text-decoration: none;
+        .signin :global(a) {
+          color: #1f5a3a;
+          font-weight: 700;
+          text-decoration: underline;
           text-underline-offset: 4px;
         }
 
-        .signin a:hover {
-          color: #193c2a;
-          text-decoration: underline;
+        .signin :global(a:hover) {
+          color: #14391f;
         }
 
         .back:focus-visible,
         .brand:focus-visible,
-        .signin a:focus-visible,
+        .signin :global(a:focus-visible),
         .chip:focus-visible,
         .submit:focus-visible {
           outline: 3px solid #c58b45;
@@ -1325,33 +1300,8 @@ export default function SignUpPage() {
         @keyframes card-enter {
           from {
             opacity: 0;
-            transform: translateY(16px);
+            transform: translateY(14px);
           }
-
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes content-enter {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes message-enter {
-          from {
-            opacity: 0;
-            transform: translateY(5px);
-          }
-
           to {
             opacity: 1;
             transform: translateY(0);
@@ -1364,36 +1314,27 @@ export default function SignUpPage() {
           }
         }
 
-        /* Tablet screens */
-        @media (max-width: 900px) {
-          .page {
-            padding: 28px 18px;
-          }
-
+        /* Tablet */
+        @media (max-width: 1000px) {
           .card {
-            grid-template-columns: 0.75fr 1.25fr;
+            grid-template-columns: 0.7fr 1.3fr;
           }
 
           .hero {
-            padding: 30px 25px;
-            min-height: 620px;
+            padding: 36px 28px;
           }
 
           .hero h1 {
-            font-size: 36px;
+            font-size: 32px;
           }
 
           .form-panel {
-            padding: 32px 26px;
-          }
-
-          .two-columns {
-            gap: 12px;
+            padding: 32px 28px 40px;
           }
         }
 
-        /* Mobile screens */
-        @media (max-width: 680px) {
+        /* Mobile */
+        @media (max-width: 760px) {
           .page {
             display: block;
             padding: 16px 12px;
@@ -1402,103 +1343,63 @@ export default function SignUpPage() {
           .card {
             width: 100%;
             grid-template-columns: 1fr;
-            border-radius: 18px;
+            border-radius: 16px;
           }
 
           .hero {
-            min-height: auto;
-            gap: 30px;
-            padding: 28px 24px;
-            background-position: center 45%;
-          }
-
-          .hero h1 {
-            font-size: clamp(32px, 8vw, 40px);
+            gap: 28px;
+            padding: 30px 24px;
           }
 
           .hero-description {
-            max-width: 440px;
-            font-size: 15px;
-          }
-
-          .hero-features {
-            gap: 11px;
-            margin-top: 22px;
+            max-width: 480px;
           }
 
           .form-panel {
-            padding: 28px 24px;
-          }
-
-          .intro {
-            margin-bottom: 24px;
-          }
-
-          form {
-            gap: 18px;
-          }
-
-          .field input,
-          .field select,
-          .field textarea {
-            font-size: 16px;
-          }
-
-          .chip {
-            min-height: 44px;
-          }
-        }
-
-        /* Small mobile screens */
-        @media (max-width: 420px) {
-          .page {
-            padding: 10px 8px;
-          }
-
-          .hero {
-            padding: 24px 20px;
-            gap: 25px;
-          }
-
-          .hero h1 {
-            font-size: 32px;
-          }
-
-          .form-panel {
-            padding: 24px 18px;
-          }
-
-          .form-panel h2 {
-            font-size: 28px;
+            padding: 28px 22px 36px;
           }
 
           .two-columns {
             grid-template-columns: 1fr;
-            gap: 18px;
-          }
-
-          .photo-picker {
-            gap: 12px;
-            padding: 10px;
-          }
-
-          .avatar {
-            flex-basis: 56px;
-            width: 56px;
-            height: 56px;
-          }
-
-          .chips {
-            gap: 8px;
-          }
-
-          .chip {
-            padding: 9px 12px;
-            font-size: 13px;
+            gap: 22px;
           }
         }
 
-        /* Respect reduced-motion preferences */
+        /* Small mobile */
+        @media (max-width: 420px) {
+          .page {
+            padding: 8px;
+          }
+
+          .hero {
+            padding: 24px 20px;
+          }
+
+          .hero h1 {
+            font-size: 30px;
+          }
+
+          .form-panel {
+            padding: 24px 16px 32px;
+          }
+
+          .photo-picker {
+            gap: 14px;
+            padding: 12px;
+          }
+
+          .avatar {
+            flex-basis: 60px;
+            width: 60px;
+            height: 60px;
+          }
+
+          .chip {
+            padding: 10px 16px;
+            font-size: 14px;
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           *,
           *::before,
@@ -1506,7 +1407,6 @@ export default function SignUpPage() {
             animation-duration: 0.01ms !important;
             animation-iteration-count: 1 !important;
             transition-duration: 0.01ms !important;
-            scroll-behavior: auto !important;
           }
         }
       `}</style>

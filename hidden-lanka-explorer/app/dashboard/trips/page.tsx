@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -13,12 +12,7 @@ import {
   TripDestination,
   TripExpense,
 } from "@/lib/trip-planner/types";
-import {
-  SRI_LANKA_HUBS,
-  calculateHaversineDistance,
-  estimateTravelMinutes,
-  formatDistance,
-} from "@/lib/trip-planner/distance";
+import { SRI_LANKA_HUBS } from "@/lib/trip-planner/distance";
 import { calculateRouteWithOSRM } from "@/lib/trip-planner/osrm";
 import {
   deleteTrip,
@@ -26,6 +20,7 @@ import {
   loadUserTrips,
   markPlaceAsVisited,
   saveTrip,
+  unmarkPlaceAsVisited,
   VisitedPlaceRecord,
 } from "@/lib/trip-planner/storage";
 import { generateDefaultTripExpenses } from "@/lib/trip-planner/budget";
@@ -110,6 +105,14 @@ const GLOBAL_CSS = String.raw`
 .tp-root .bg-\[\#f6f1e8\]            { background-color: white; }
 .tp-root .hover\:bg-\[\#f6f1e8\]:hover { background-color: #f1f2f4; }
 .tp-root .border-\[\#c99a43\]\/20    { border-color: #e3e6ea; }
+
+.tp-root [class~="text-[#5b616b]"],
+.tp-root [class~="text-[#718078]"],
+.tp-root [class~="text-[#123b26]/50"],
+.tp-root [class~="text-[#123b26]/60"],
+.tp-root [class~="text-[#123b26]/70"],
+.tp-root [class~="text-[#123b26]/80"],
+.tp-root [class*="text-gray-"] { color: #000000 !important; }
 `;
 
 // TripMap uses Leaflet which requires browser window (ssr: false)
@@ -553,10 +556,9 @@ function TripEditModal({
 
 export default function TripPlannerView() {
   // ─────────────────────────── State ───────────────────────────
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<DashboardTab>("trips");
   const [allPlaces, setAllPlaces] = useState<PlaceRecord[]>([]);
+  const [placeCategoryNames, setPlaceCategoryNames] = useState<string[]>([]);
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [startLocation, setStartLocation] = useState<LocationPoint>(SRI_LANKA_HUBS[0]);
@@ -572,105 +574,71 @@ export default function TripPlannerView() {
   const [error, setError] = useState<string | null>(null);
   const routeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ─────────────────────────── Check authentication ───────────────────────────
+  // ─────────────────────────── Load public places from Supabase ───────────────────────────
   useEffect(() => {
+    let cancelled = false;
+
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data, error: authErr }) => {
-      if (!authErr && data?.user) {
-        setCurrentUser(data.user);
-      } else {
-        setCurrentUser(null);
-      }
-      setAuthLoading(false);
-    });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          setCurrentUser(session.user);
-        } else {
-          setCurrentUser(null);
-        }
-      }
-    );
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
-  }, []);
-
-  // ─────────────────────────── Load catalog places from Supabase ───────────────────────────
-  useEffect(() => {
-    const supabase = createClient();
-    async function loadCatalogPlaces() {
+    async function loadPlaces() {
       try {
-        setPlacesLoading(true);
-        // Query approved and published places first
-        let { data, error: err } = await supabase
+        const { data, error: placesError } = await supabase
           .from("places")
           .select("*")
           .in("status", ["approved", "published"])
           .order("name");
 
-        if (err || !data || data.length === 0) {
-          const fallback = await supabase
-            .from("places")
-            .select("*")
-            .order("name");
-          data = fallback.data || [];
+        if (placesError) throw placesError;
+        if (cancelled) return;
+
+        const { data: categories, error: categoriesError } = await supabase
+          .from("categories")
+          .select("id, name")
+          .order("name");
+        if (categoriesError) {
+          console.error("Failed to load place categories:", categoriesError);
+          if (!cancelled) setError("Failed to load place categories.");
         }
 
-        let catMap = new Map<string, string>();
-        try {
-          const { data: catData } = await supabase.from("categories").select("id, name");
-          if (catData) {
-            catMap = new Map(catData.map((c: any) => [c.id, c.name]));
-          }
-        } catch {
-          // ignore category query failure
+        const categoryById = new Map(
+          (categories ?? []).map((category) => [
+            String(category.id),
+            category.name,
+          ])
+        );
+        if (!cancelled) {
+          setPlaceCategoryNames(
+            (categories ?? [])
+              .map((category) => category.name)
+              .filter((name): name is string => Boolean(name))
+          );
         }
 
-        const formatted: PlaceRecord[] = (data || []).map((p: any) => ({
-          ...p,
-          id: String(p.id),
-          name: String(p.name || "Unnamed Place"),
-          slug: String(p.slug || p.id),
-          district: String(p.district || "Sri Lanka"),
-          nearest_town: String(p.nearest_town || p.district || ""),
-          category_id: p.category_id ? String(p.category_id) : null,
-          category_name: String(
-            p.category_name || (p.category_id ? catMap.get(p.category_id) : null) || p.category || "Hidden Gem"
-          ),
-          short_description: String(
-            p.short_description || (p.description ? String(p.description).substring(0, 160) : "")
-          ),
-          description: p.description ? String(p.description) : "",
-          hero_image_url: p.hero_image_url || p.image_url || "/images/hero/sigiriya.jpg",
-          image_url: p.image_url || p.hero_image_url || "/images/hero/sigiriya.jpg",
-          latitude: typeof p.latitude === "number" ? p.latitude : parseFloat(String(p.latitude)) || 7.8731,
-          longitude: typeof p.longitude === "number" ? p.longitude : parseFloat(String(p.longitude)) || 80.7718,
-          difficulty: p.difficulty ? String(p.difficulty) : "Moderate",
-          best_season: p.best_season ? String(p.best_season) : (p.season ? String(p.season) : "Year-Round"),
-          entrance_fee: p.entrance_fee ? String(p.entrance_fee) : null,
-          hidden_tips: p.hidden_tips ? String(p.hidden_tips) : null,
-          safety_tips: p.safety_tips ? String(p.safety_tips) : null,
-          warnings: p.warnings ? String(p.warnings) : null,
-          road_condition: p.road_condition ? String(p.road_condition) : null,
-          activities: Array.isArray(p.activities) ? p.activities : [],
-          rating_avg: typeof p.rating_avg === "number" ? p.rating_avg : 4.8,
-          rating_count: typeof p.rating_count === "number" ? p.rating_count : 12,
-          like_count: typeof p.like_count === "number" ? p.like_count : 0,
+        const catalogPlaces = (data ?? []).map((place) => ({
+          ...place,
+          category_name:
+            place.category_name ??
+            place.category ??
+            categoryById.get(String(place.category_id)) ??
+            "General",
+          latitude:
+            typeof place.latitude === "number" ? place.latitude : Number.NaN,
+          longitude:
+            typeof place.longitude === "number" ? place.longitude : Number.NaN,
         }));
-
-        setAllPlaces(formatted);
-      } catch (e) {
-        console.error("Failed to load catalog places:", e);
+        setAllPlaces(catalogPlaces as PlaceRecord[]);
+      } catch (placesError) {
+        console.error("Failed to load discoverable places:", placesError);
+        if (!cancelled) setError("Failed to load places. Please try again.");
       } finally {
-        setPlacesLoading(false);
+        if (!cancelled) setPlacesLoading(false);
       }
     }
 
-    void loadCatalogPlaces();
+    void loadPlaces();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ─────────────────────────── Load user trips ───────────────────────────
@@ -694,25 +662,13 @@ export default function TripPlannerView() {
   // ─────────────────────────── Derived destinations as PlaceRecord[] ───────────────────────────
   const tripDestinationPlaces: PlaceRecord[] = useMemo(() => {
     if (!activeTrip?.destinations) return [];
-    const list: PlaceRecord[] = [];
-    for (const d of activeTrip.destinations) {
-      let p = d.place;
-      if (!p) p = allPlaces.find((item) => item.id === d.place_id);
-      if (p) {
-        const dist = calculateHaversineDistance(
-          startLocation.latitude,
-          startLocation.longitude,
-          p.latitude,
-          p.longitude
-        );
-        list.push({
-          ...p,
-          distance_km: Math.round(dist * 10) / 10,
-        });
-      }
-    }
-    return list;
-  }, [activeTrip, allPlaces, startLocation]);
+    return activeTrip.destinations
+      .map((d) => {
+        if (d.place) return d.place;
+        return allPlaces.find((p) => p.id === d.place_id);
+      })
+      .filter((p): p is PlaceRecord => !!p);
+  }, [activeTrip, allPlaces]);
 
   const activeTripDestIds = useMemo(
     () => activeTrip?.destinations?.map((d) => d.place_id) ?? [],
@@ -823,75 +779,31 @@ export default function TripPlannerView() {
 
   // ─────────────────────────── Add / Remove destination ───────────────────────────
   const handleAddPlace = useCallback(
-    async (place: PlaceRecord) => {
-      let currentTrip = activeTrip;
-      if (!currentTrip) {
-        // Auto-create trip so user is never blocked from choosing places!
-        const newTrip: Trip = {
-          id: `trip-${Date.now()}`,
-          user_id: currentUser?.id || "anonymous",
-          title: "My Sri Lanka Trip",
-          description: "Trip created from Discover Places",
-          start_location_name: startLocation.name,
-          start_latitude: startLocation.latitude,
-          start_longitude: startLocation.longitude,
-          start_date: new Date().toISOString().split("T")[0],
-          duration_days: 3,
-          traveler_count: 2,
-          transport_mode: "driving",
-          total_budget: 150000,
-          estimated_cost: 0,
-          budget_currency: "LKR",
-          status: "planning",
-          is_public: false,
-          destinations: [],
-          expenses: [],
-          preferences: {
-            interests: [],
-            preferred_districts: [],
-            preferred_categories: [],
-            pace: "moderate",
-            accommodation_tier: "mid_range",
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        newTrip.expenses = generateDefaultTripExpenses(newTrip.id, {
-          travelerCount: newTrip.traveler_count,
-          durationDays: newTrip.duration_days,
-          totalDistanceKm: 100,
-          transportMode: "driving",
-          accommodationTier: "mid_range",
-          selectedPlaces: [],
-        });
-        currentTrip = newTrip;
-        setUserTrips((prev) => [newTrip, ...prev]);
-        setActiveTrip(newTrip);
-        await saveTrip(newTrip);
-      }
-
-      if ((currentTrip.destinations ?? []).some((d) => d.place_id === place.id)) {
+    (place: PlaceRecord) => {
+      if (!activeTrip) {
+        setError("Select or create a trip first.");
         return;
       }
+      if (activeTripDestIds.includes(place.id)) return;
 
       const dest: TripDestination = {
         id: `dest-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        trip_id: currentTrip.id,
+        trip_id: activeTrip.id,
         place_id: place.id,
         day_number: 1,
-        order_index: currentTrip.destinations?.length ?? 0,
+        order_index: activeTrip.destinations?.length ?? 0,
         visit_time_slot: "morning",
         is_visited: false,
         place,
       };
 
       const updated: Trip = {
-        ...currentTrip,
-        destinations: [...(currentTrip.destinations ?? []), dest],
+        ...activeTrip,
+        destinations: [...(activeTrip.destinations ?? []), dest],
       };
-      await updateTrip(updated);
+      updateTrip(updated);
     },
-    [activeTrip, startLocation, updateTrip]
+    [activeTrip, activeTripDestIds, updateTrip]
   );
 
   const handleRemovePlace = useCallback(
@@ -934,19 +846,23 @@ export default function TripPlannerView() {
     (dest: TripDestination) => {
       if (!activeTrip) return;
       const place = dest.place ?? allPlaces.find((p) => p.id === dest.place_id);
+      const isVisited = !dest.is_visited;
+      const visitedAt = isVisited ? new Date().toISOString() : null;
 
-      if (dest.is_visited && place) {
+      if (isVisited && place && visitedAt) {
         const record: VisitedPlaceRecord = {
           place_id: dest.place_id,
           place_name: place.name,
           district: place.district,
           latitude: place.latitude,
           longitude: place.longitude,
-          visited_at: new Date().toISOString(),
+          visited_at: visitedAt,
           trip_id: activeTrip.id,
           trip_title: activeTrip.title,
         };
         markPlaceAsVisited(record);
+      } else if (!isVisited) {
+        unmarkPlaceAsVisited(dest.place_id);
       }
 
       const updated: Trip = {
@@ -955,8 +871,8 @@ export default function TripPlannerView() {
           d.id === dest.id
             ? {
                 ...d,
-                is_visited: dest.is_visited,
-                visited_at: dest.is_visited ? new Date().toISOString() : null,
+                is_visited: isVisited,
+                visited_at: visitedAt,
               }
             : d
         ),
@@ -1053,29 +969,19 @@ export default function TripPlannerView() {
     },
   };
 
-  // Use the visitor's real position as the trip's starting point.
+  // Use the visitor's GPS position or a searched map location as the trip's starting point.
   // Spreading keeps any other fields your LocationPoint type has.
-  const handleUseCurrentLocation = (latitude: number, longitude: number) => {
+  const handleUseCurrentLocation = (
+    latitude: number,
+    longitude: number,
+    name = "My current location"
+  ) => {
     setStartLocation({
       ...startLocation,
-      name: "My current location",
+      name,
       latitude,
       longitude,
-    } as LocationPoint);
-  };
-
-  const handleLocateMe = () => {
-    if (typeof navigator !== "undefined" && "geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          handleUseCurrentLocation(pos.coords.latitude, pos.coords.longitude);
-        },
-        (err) => {
-          console.warn("Geolocation error:", err);
-        },
-        { enableHighAccuracy: true, timeout: 15000 }
-      );
-    }
+    });
   };
 
   // My trips shows the current-location map here. Discover has its own distance
@@ -1103,52 +1009,6 @@ export default function TripPlannerView() {
 
   const TRIP_GRID =
     "lg:grid-cols-[minmax(0,1fr)_60px_120px_120px_100px_260px]";
-
-  // ─────────────────────────── Auth Protection ───────────────────────────
-  if (authLoading) {
-    return (
-      <div className="tp-root min-h-screen bg-[#f5f6f7] flex items-center justify-center p-6">
-        <style>{GLOBAL_CSS}</style>
-        <div className="text-center space-y-3">
-          <div className={`${SPINNER} mx-auto`} />
-          <p className="text-base font-bold text-[#16181d]">Loading Trip Planner…</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return (
-      <div className="tp-root min-h-screen bg-[#f5f6f7] flex items-center justify-center px-4 py-16">
-        <style>{GLOBAL_CSS}</style>
-        <div className="bg-white rounded-2xl border border-[#e3e6ea] shadow-sm max-w-lg w-full p-8 sm:p-10 text-center">
-          <div className="w-16 h-16 rounded-full bg-[#f1f2f4] text-[#a77a2f] flex items-center justify-center mx-auto mb-6">
-            <Navigation className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-[#16181d]">
-            Sign in to access Trip Planner
-          </h2>
-          <p className="mt-3 text-base text-[#5b616b] leading-relaxed">
-            The personalized Trip Planner is available exclusively to signed-in explorers. Discover hidden gems across Sri Lanka, measure live distances from your location, plan day-by-day itineraries, and map your journeys.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href="/auth/sign-in?redirect=/trips"
-              className={BTN_PRIMARY}
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/auth/sign-up?redirect=/trips"
-              className={BTN_SECONDARY}
-            >
-              Create an Account
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="tp-root min-h-screen bg-[#f5f6f7] text-[#16181d]">
@@ -1466,45 +1326,18 @@ export default function TripPlannerView() {
             <div className="space-y-6">
               {renderStartLocationCard(false)}
 
-              {/* Notification banner when places are selected */}
-              {activeTripDestIds.length > 0 ? (
-                <div className="bg-white border border-[#e3e6ea] border-l-4 border-l-[#a77a2f] rounded-xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#a77a2f] text-white flex items-center justify-center font-bold text-sm">
-                      {activeTripDestIds.length}
-                    </div>
-                    <div>
-                      <p className="text-base font-bold text-[#16181d]">
-                        {activeTripDestIds.length} place{activeTripDestIds.length !== 1 ? "s" : ""} selected for your trip
-                      </p>
-                      <p className="text-sm text-[#5b616b]">
-                        Compare them directly with {startLocation.name} on the interactive route map
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("map")}
-                    className={BTN_PRIMARY}
-                  >
-                    <MapIcon className="w-4 h-4" />
-                    View on interactive map →
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-white border border-[#e3e6ea] border-l-4 border-l-[#a77a2f] rounded-xl px-6 py-4 flex items-center justify-between gap-3 text-sm">
-                  <span className="flex items-center gap-2.5 text-[#16181d]">
-                    <MapPin className="w-5 h-5 text-[#a77a2f] shrink-0" />
-                    Browse places from the catalog below. Click &ldquo;Add to trip&rdquo; on any place to add it and compare distances on the map.
-                  </span>
-                  {!activeTrip && (
+              {!activeTrip && (
+                <div className="bg-white border border-[#e3e6ea] border-l-4 border-l-[#a77a2f] rounded-xl px-6 py-5 flex items-center gap-3 text-base">
+                  <AlertTriangle className="w-6 h-6 text-[#a77a2f] shrink-0" />
+                  <span>
+                    Select or create a trip to add destinations to it.{" "}
                     <button
                       onClick={() => setShowWizard(true)}
-                      className="underline font-bold text-[#16181d] shrink-0"
+                      className="underline font-bold"
                     >
-                      New trip wizard
+                      Create a trip
                     </button>
-                  )}
+                  </span>
                 </div>
               )}
 
@@ -1515,6 +1348,7 @@ export default function TripPlannerView() {
               ) : (
                 <NearbyPlacesDiscovery
                   places={allPlaces}
+                  categoryNames={placeCategoryNames}
                   startLocation={startLocation}
                   tripPlaceIds={activeTripDestIds}
                   onAddPlace={handleAddPlace}
@@ -1581,9 +1415,14 @@ export default function TripPlannerView() {
                   </div>
 
                   <ItineraryDayView
+                    key={activeTrip.id}
                     destinations={activeTrip.destinations ?? []}
                     allAvailablePlaces={allPlaces}
-                    durationDays={activeTrip.duration_days}
+                    durationDays={
+                      Number.isFinite(activeTrip.duration_days)
+                        ? Math.max(1, Math.floor(activeTrip.duration_days))
+                        : 1
+                    }
                     onUpdateDestinations={(destinations) =>
                       updateTrip({ ...activeTrip, destinations })
                     }
@@ -1647,187 +1486,98 @@ export default function TripPlannerView() {
           {/* ── MAP ── */}
           {activeTab === "map" && (
             <div className="space-y-6">
-              {/* Starting point / Measuring comparison banner */}
-              <div className={`${CARD} p-5 flex flex-wrap items-center justify-between gap-4`}>
-                <div>
-                  <p className="text-xs uppercase tracking-wider font-bold text-[#a77a2f]">Comparing Distances From</p>
-                  <h3 className="text-lg font-bold text-[#16181d] flex items-center gap-2 mt-0.5">
-                    <MapPin className="w-5 h-5 text-[#a77a2f]" />
-                    {startLocation.name}
-                  </h3>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleLocateMe}
-                    className={BTN_SECONDARY}
-                  >
-                    <Navigation className="w-4 h-4" />
-                    Use My GPS Location
+              {!activeTrip ? (
+                <EmptyState
+                  icon={<MapIcon className="w-14 h-14" />}
+                  title="No trip selected"
+                  text="Choose a trip to see its route on the map."
+                >
+                  <button onClick={() => setActiveTab("trips")} className={BTN_SECONDARY}>
+                    <ChevronRight className="w-5 h-5" />
+                    Go to trips
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("discover")}
-                    className={BTN_PRIMARY}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Discover More Places
-                  </button>
-                </div>
-              </div>
-
-              {routePlan && tripDestinationPlaces.length > 0 && (
-                <>
-                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-                    <StatTile
-                      icon={<Route className="w-4 h-4" />}
-                      label="Total distance"
-                      value={`${routePlan.totalDistanceKm.toFixed(1)} km`}
-                    />
-                    <StatTile
-                      icon={<Clock className="w-4 h-4" />}
-                      label="Driving time"
-                      value={formatDuration(routePlan.totalDurationMinutes)}
-                    />
-                    <StatTile
-                      icon={<MapPin className="w-4 h-4" />}
-                      label="Stops"
-                      value={tripDestinationPlaces.length}
-                    />
-                  </div>
-                  <p className="text-sm text-[#5b616b]">
-                    {routePlan.isOsrm
-                      ? "Distances and times come from OSRM road routing."
-                      : "Road routing is unavailable, so these are straight-line estimates."}
-                  </p>
-                </>
-              )}
-
-              {/* Always Render the Interactive Route Map */}
-              <div
-                className="rounded-xl overflow-hidden border border-[#e3e6ea] shadow-sm bg-white"
-                style={{ height: "560px" }}
-              >
-                <TripMap
-                  startLocation={startLocation}
-                  destinations={tripDestinationPlaces}
-                  allPlaces={allPlaces}
-                  routePlan={routePlan}
-                  height="560px"
-                  interactive={true}
-                  onAddPlace={handleAddPlace}
-                />
-              </div>
-
-              {tripDestinationPlaces.length === 0 ? (
-                <div className="bg-white border border-[#e3e6ea] rounded-xl p-5 flex flex-wrap items-center justify-between gap-4 text-sm text-[#5b616b]">
-                  <span className="flex items-center gap-2 text-[#16181d]">
-                    <MapPin className="w-5 h-5 text-[#a77a2f] shrink-0" />
-                    No stops selected yet. Click any marker on the map to add it to your trip, or choose places from Discover.
-                  </span>
-                  <button
-                    onClick={() => setActiveTab("discover")}
-                    className={BTN_PRIMARY}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Discover Places
-                  </button>
-                </div>
+                </EmptyState>
               ) : (
-                /* Comparison List: Chosen Places vs Starting Location */
-                <section className={`${CARD} p-6`}>
-                  <SectionTitle icon={<MapPin className="w-5 h-5" />}>
-                    Chosen Places ({tripDestinationPlaces.length}) — Distances from {startLocation.name}
-                  </SectionTitle>
-                  <div className="space-y-3 mt-4">
-                    {tripDestinationPlaces.map((place, idx) => {
-                      const dist =
-                        place.distance_km ??
-                        calculateHaversineDistance(
-                          startLocation.latitude,
-                          startLocation.longitude,
-                          place.latitude,
-                          place.longitude
-                        );
-                      const estMin = estimateTravelMinutes(dist, "driving");
-
-                      return (
-                        <div
-                          key={place.id}
-                          className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl border border-[#e3e6ea] hover:border-[#a77a2f] bg-white transition-colors"
-                        >
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            <span className="w-9 h-9 rounded-full bg-[#16181d] text-white flex items-center justify-center font-bold text-sm shrink-0">
-                              {idx + 1}
-                            </span>
-                            {place.hero_image_url && (
-                              <img
-                                src={place.hero_image_url}
-                                alt={place.name}
-                                className="w-14 h-14 rounded-lg object-cover shrink-0 border border-[#e3e6ea]"
-                              />
-                            )}
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-base text-[#16181d] truncate">
-                                {place.name}
-                              </h4>
-                              <p className="text-xs text-[#5b616b] flex items-center gap-2 mt-0.5">
-                                <span className="font-medium text-[#a77a2f]">{place.district}</span>
-                                <span>•</span>
-                                <span>{place.category_name}</span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-6">
-                            <div className="text-right">
-                              <p className="font-bold text-base text-[#16181d]">
-                                {dist.toFixed(1)} km
-                              </p>
-                              <p className="text-xs text-[#5b616b]">
-                                ~{formatDuration(estMin)} drive
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemovePlace(place.id)}
-                              className="p-2 text-[#5b616b] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Remove from trip"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              )}
-
-              {routePlan && routePlan.legs.length > 0 && (
-                <section className={`${CARD} p-6`}>
-                  <SectionTitle icon={<Route className="w-5 h-5" />}>Route legs</SectionTitle>
-                  <div>
-                    {routePlan.legs.map((leg, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between gap-4 py-4 border-b border-[#e3e6ea] last:border-0 text-base"
-                      >
-                        <span className="flex items-center gap-3 min-w-0">
-                          <span className="w-8 h-8 rounded-full bg-[#f1f2f4] text-sm flex items-center justify-center font-bold shrink-0">
-                            {i + 1}
-                          </span>
-                          <span className="truncate">{leg.fromName}</span>
-                          <ChevronRight className="w-5 h-5 text-[#a77a2f] shrink-0" />
-                          <span className="truncate">{leg.toName}</span>
-                        </span>
-                        <span className="text-sm text-[#5b616b] shrink-0">
-                          {leg.distanceKm.toFixed(1)} km, {Math.round(leg.durationMinutes)} min
-                        </span>
+                <>
+                  {routePlan && (
+                    <>
+                      <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                        <StatTile
+                          icon={<Route className="w-4 h-4" />}
+                          label="Total distance"
+                          value={`${routePlan.totalDistanceKm.toFixed(1)} km`}
+                        />
+                        <StatTile
+                          icon={<Clock className="w-4 h-4" />}
+                          label="Driving time"
+                          value={formatDuration(routePlan.totalDurationMinutes)}
+                        />
+                        <StatTile
+                          icon={<MapPin className="w-4 h-4" />}
+                          label="Stops"
+                          value={tripDestinationPlaces.length}
+                        />
                       </div>
-                    ))}
-                  </div>
-                </section>
+                      <p className="text-sm text-[#5b616b]">
+                        {routePlan.isOsrm
+                          ? "Distances and times come from OSRM road routing."
+                          : "Road routing is unavailable, so these are straight-line estimates."}
+                      </p>
+                    </>
+                  )}
+
+                  {tripDestinationPlaces.length === 0 ? (
+                    <EmptyState
+                      icon={<MapPin className="w-14 h-14" />}
+                      title="No destinations yet"
+                      text="Add places to this trip and the route will appear here."
+                    >
+                      <button onClick={() => setActiveTab("discover")} className={BTN_PRIMARY}>
+                        <Plus className="w-5 h-5" />
+                        Discover places
+                      </button>
+                    </EmptyState>
+                  ) : (
+                    <div
+                      className="rounded-xl overflow-hidden border border-[#e3e6ea]"
+                      style={{ height: "560px" }}
+                    >
+                      <TripMap
+                        startLocation={startLocation}
+                        destinations={tripDestinationPlaces}
+                        routePlan={routePlan}
+                        height="560px"
+                        interactive={true}
+                      />
+                    </div>
+                  )}
+
+                  {routePlan && routePlan.legs.length > 0 && (
+                    <section className={`${CARD} p-6`}>
+                      <SectionTitle icon={<Route className="w-5 h-5" />}>Route legs</SectionTitle>
+                      <div>
+                        {routePlan.legs.map((leg, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between gap-4 py-4 border-b border-[#e3e6ea] last:border-0 text-base"
+                          >
+                            <span className="flex items-center gap-3 min-w-0">
+                              <span className="w-8 h-8 rounded-full bg-[#f1f2f4] text-sm flex items-center justify-center font-bold shrink-0">
+                                {i + 1}
+                              </span>
+                              <span className="truncate">{leg.fromName}</span>
+                              <ChevronRight className="w-5 h-5 text-[#a77a2f] shrink-0" />
+                              <span className="truncate">{leg.toName}</span>
+                            </span>
+                            <span className="text-sm text-[#5b616b] shrink-0">
+                              {leg.distanceKm.toFixed(1)} km, {Math.round(leg.durationMinutes)} min
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
               )}
             </div>
           )}

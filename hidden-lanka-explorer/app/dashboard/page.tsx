@@ -856,7 +856,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <div className="h-2 rounded-full bg-[#eef3ef]">
                       <div
-                        className="h-2 rounded-full bg-[#1e5a41]"
+                        className="h-2 rounded-full bg-[darkblue]"
                         style={{ width: `${(district.count / maxDistrict) * 100}%` }}
                       />
                     </div>

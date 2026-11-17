@@ -6,6 +6,7 @@ import "./globals.css";
 
 import { TripProvider } from "@/lib/trip-context";
 import Navbar from "@/components/layout/navbar";
+import Breadcrumbs from "@/components/layout/breadcrumbs";
 import Footer from "@/components/layout/footer";
 import AccessibilityWidget from "@/components/ui/accessibility-widget";
 import RecommendationBot from "@/components/ai/recommendation-bot";
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body>
         <TripProvider>
           <Navbar />
+          <Breadcrumbs />
           <main>{children}</main>
           <Footer />
           <RecommendationBot />

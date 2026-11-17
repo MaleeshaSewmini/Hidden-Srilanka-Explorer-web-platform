@@ -10,9 +10,6 @@ import {
   Trash2,
   CheckCircle2,
   Circle,
-  ShieldAlert,
-  AlertTriangle,
-  Lightbulb,
   ExternalLink,
   ChevronDown,
   ChevronUp,
@@ -65,7 +62,9 @@ export default function ItineraryDayView({
     useState<string | null>(null);
   const [confirmRemoveDay, setConfirmRemoveDay] = useState(false);
 
-  const totalDays = Math.max(1, durationDays);
+  const totalDays = Number.isFinite(durationDays)
+    ? Math.max(1, Math.floor(durationDays))
+    : 1;
 
   // The day cards: exactly one per day the user chose
   const daysArray = useMemo(
@@ -481,36 +480,6 @@ export default function ItineraryDayView({
                       />
                     </div>
                   </div>
-
-                  {/* Safety and tips from the place record */}
-                  {(place.safety_tips ||
-                    place.warnings ||
-                    place.hidden_tips ||
-                    place.road_condition) && (
-                    <div className="mt-5 rounded-lg bg-[#f1f2f4] p-4 text-sm text-[#16181d] space-y-2">
-                      {place.warnings && (
-                        <div className="flex items-start gap-2 font-bold text-red-800">
-                          <AlertTriangle className="w-5 h-5 shrink-0 text-red-600" />
-                          <span>Warning: {place.warnings}</span>
-                        </div>
-                      )}
-                      {place.safety_tips && (
-                        <div className="flex items-start gap-2">
-                          <ShieldAlert className="w-5 h-5 shrink-0 text-[#a77a2f]" />
-                          <span>Safety: {place.safety_tips}</span>
-                        </div>
-                      )}
-                      {place.road_condition && (
-                        <p className="text-[#5b616b]">Road condition: {place.road_condition}</p>
-                      )}
-                      {place.hidden_tips && (
-                        <div className="flex items-start gap-2">
-                          <Lightbulb className="w-5 h-5 shrink-0 text-[#a77a2f]" />
-                          <span>Insider tip: {place.hidden_tips}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Nearby alternatives */}
                   <div className="mt-4 text-right">

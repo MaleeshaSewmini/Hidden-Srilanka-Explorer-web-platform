@@ -146,7 +146,7 @@ export default function NotificationCenter({
             <button
               type="button"
               onClick={() => setShowScheduleModal(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#123b26] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#c99a43] hover:text-[#0b2417] transition shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#176b45] px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-[#115c3a] hover:text-white shadow-sm"
             >
               <Plus size={14} /> Schedule Reminder
             </button>
@@ -177,7 +177,7 @@ export default function NotificationCenter({
       {/* Preferences Drawer */}
       {showPreferences && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3 shadow-sm animate-in fade-in">
-          <h4 className="font-bold text-xs uppercase tracking-wider text-[#0b2417]">
+          <h4 className="font-bold text-sm uppercase tracking-wider text-[#0b2417]">
             Notification Preferences
           </h4>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 text-xs">
@@ -190,7 +190,7 @@ export default function NotificationCenter({
               />
               <div>
                 <div className="font-bold text-[#0b2417]">Trip Reminders</div>
-                <div className="text-gray-500 text-[11px]">
+                <div className="text-gray-500 text-[14px]">
                   Alerts 3 days and 1 day before departure
                 </div>
               </div>
@@ -205,7 +205,7 @@ export default function NotificationCenter({
               />
               <div>
                 <div className="font-bold text-[#0b2417]">Destination Visit Alerts</div>
-                <div className="text-gray-500 text-[11px]">
+                <div className="text-gray-500 text-[14px]">
                   Morning reminders for planned stop activities
                 </div>
               </div>
@@ -220,7 +220,7 @@ export default function NotificationCenter({
               />
               <div>
                 <div className="font-bold text-[#0b2417]">Weather & Safety Updates</div>
-                <div className="text-gray-500 text-[11px]">
+                <div className="text-gray-500 text-[14px]">
                   Monsoon conditions, waterfall swells & trail warnings
                 </div>
               </div>
@@ -235,7 +235,7 @@ export default function NotificationCenter({
               />
               <div>
                 <div className="font-bold text-[#0b2417]">New Place Matches</div>
-                <div className="text-gray-500 text-[11px]">
+                <div className="text-gray-500 text-[14px]">
                   Notifications when hidden spots matching your interests are published
                 </div>
               </div>
@@ -357,7 +357,7 @@ export default function NotificationCenter({
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-[#123b26] px-5 py-2 text-xs font-bold text-white hover:bg-[#c99a43] hover:text-[#0b2417]"
+                className="rounded-xl bg-[#176b45] px-5 py-2 text-xs font-bold text-white transition-colors hover:bg-[#115c3a] hover:text-white"
               >
                 Set Reminder
               </button>
@@ -380,10 +380,10 @@ export default function NotificationCenter({
             key={tab.id}
             type="button"
             onClick={() => setFilter(tab.id)}
-            className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+            className={`rounded-full px-3 py-1.5 text-base font-bold transition ${
               filter === tab.id
-                ? "bg-[#123b26] text-white"
-                : "bg-white text-gray-600 hover:bg-gray-100"
+                ? "bg-[]"
+                : "bg-white text-gray-900 hover:bg"
             }`}
           >
             {tab.label}
@@ -393,14 +393,14 @@ export default function NotificationCenter({
 
       {/* Notifications List */}
       {loading ? (
-        <div className="rounded-2xl border border-gray-200 p-8 text-center bg-white text-xs text-gray-500">
+        <div className="rounded-2xl border border-gray-200 p-8 text-center bg-white text-sm text-gray-500">
           Loading notifications...
         </div>
       ) : filteredNotifs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center bg-white">
           <Bell size={28} className="mx-auto text-gray-300 mb-2" />
           <h5 className="font-bold text-sm text-[#0b2417]">No notifications</h5>
-          <p className="text-xs text-[#718078] mt-0.5">
+          <p className="text-sm text-[#718078] mt-0.5">
             You are all caught up! Trip reminders and alerts will appear here.
           </p>
         </div>
@@ -430,21 +430,21 @@ export default function NotificationCenter({
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-sm text-[#0b2417]">
+                    <h4 className="font-bold text-base text-[#0b2417]">
                       {notif.title}
                     </h4>
                     {!notif.is_read && (
-                      <span className="rounded-full bg-[#123b26] px-2 py-0.5 text-[9px] font-bold text-[#f1cf88]">
+                      <span className="rounded-full bg-[#123b26] px-2 py-0.5 text-[15px] font-bold text-[#f1cf88]">
                         New
                       </span>
                     )}
                   </div>
 
-                  <p className="mt-1 text-xs text-gray-700 leading-relaxed">
+                  <p className="mt-1 text-sm text-gray-700 leading-relaxed">
                     {notif.message}
                   </p>
 
-                  <span className="mt-2 block text-[10px] text-gray-400">
+                  <span className="mt-2 block text-[15px] text-gray-400">
                     {new Date(notif.created_at).toLocaleString("en-US", {
                       dateStyle: "medium",
                       timeStyle: "short",

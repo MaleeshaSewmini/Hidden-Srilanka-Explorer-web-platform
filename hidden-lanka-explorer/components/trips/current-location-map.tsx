@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap, Marker, Circle } from "leaflet";
-import { LocateFixed, MapPin, RefreshCw } from "lucide-react";
+import { LocateFixed, MapPin, RefreshCw, Search } from "lucide-react";
 
 /* ==========================================================================
    CurrentLocationMap
@@ -17,12 +17,13 @@ import { LocateFixed, MapPin, RefreshCw } from "lucide-react";
 type Status = "idle" | "locating" | "found" | "error";
 
 type Position = { lat: number; lng: number; accuracy: number };
+type SearchResult = { id: string; name: string; displayName: string; lat: number; lng: number };
 
 type Props = {
   /** The trip's current starting point, shown as a gold dot. */
   startLocation?: { latitude: number; longitude: number; name?: string } | null;
   /** Called when the visitor chooses "Use as starting point". */
-  onUseAsStart?: (lat: number, lng: number) => void;
+  onUseAsStart?: (lat: number, lng: number, name?: string) => void;
   /** Map height in pixels. */
   height?: number;
   /** Ask for the location as soon as the map is ready. */
@@ -36,6 +37,8 @@ const STYLES = `
 .clm-you{ display:block; width:18px; height:18px; border-radius:50%; background:#2563eb;
   border:3px solid #fff; box-shadow:0 0 0 0 rgba(37,99,235,.5); animation:clm-pulse 2s infinite; }
 .clm-start{ display:block; width:18px; height:18px; border-radius:50%; background:#a77a2f;
+  border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.35); }
+.clm-searched{ display:block; width:18px; height:18px; border-radius:50%; background:#16a34a;
   border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.35); }
 @keyframes clm-pulse{ 70%{ box-shadow:0 0 0 14px rgba(37,99,235,0); } 100%{ box-shadow:0 0 0 0 rgba(37,99,235,0); } }
 @media (prefers-reduced-motion:reduce){ .clm-you{ animation:none; } }
@@ -53,11 +56,20 @@ export default function CurrentLocationMap({
   const youMarkerRef = useRef<Marker | null>(null);
   const circleRef = useRef<Circle | null>(null);
   const startMarkerRef = useRef<Marker | null>(null);
+  const searchMarkerRef = useRef<Marker | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const lastSearchAtRef = useRef(0);
+  const selectedLocationRef = useRef<SearchResult | null>(null);
 
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string>("");
   const [position, setPosition] = useState<Position | null>(null);
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState<SearchResult | null>(null);
 
   // ───────────── 1. Create the map once ─────────────
   useEffect(() => {
@@ -94,9 +106,12 @@ export default function CurrentLocationMap({
       youMarkerRef.current = null;
       circleRef.current = null;
       startMarkerRef.current = null;
+      searchMarkerRef.current = null;
       setReady(false);
     };
   }, []);
+
+  useEffect(() => () => searchAbortRef.current?.abort(), []);
 
   // ───────────── 2. Starting point marker (gold) ─────────────
   useEffect(() => {
@@ -159,11 +174,43 @@ export default function CurrentLocationMap({
       .addTo(map)
       .bindTooltip("You are here");
 
-    map.flyTo(latlng, position.accuracy > 1000 ? 12 : 14, { duration: 1.2 });
+    if (!selectedLocationRef.current) {
+      map.flyTo(latlng, position.accuracy > 1000 ? 12 : 14, { duration: 1.2 });
+    }
   }, [ready, position]);
 
+  // ───────────── Searched location marker ─────────────
+  useEffect(() => {
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    if (!ready || !L || !map) return;
+
+    searchMarkerRef.current?.remove();
+    searchMarkerRef.current = null;
+    if (!selectedLocation) return;
+
+    searchMarkerRef.current = L.marker([selectedLocation.lat, selectedLocation.lng], {
+      icon: L.divIcon({
+        className: "clm-icon",
+        html: '<span class="clm-searched"></span>',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      }),
+      title: selectedLocation.name,
+    })
+      .addTo(map)
+      .bindTooltip(selectedLocation.displayName);
+
+    map.flyTo([selectedLocation.lat, selectedLocation.lng], 14, { duration: 1.2 });
+  }, [ready, selectedLocation]);
+
   // ───────────── Ask the browser for the location ─────────────
-  const locate = useCallback(() => {
+  const locate = useCallback((clearSearch = true) => {
+    if (clearSearch) {
+      selectedLocationRef.current = null;
+      setSelectedLocation(null);
+    }
+
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
       setStatus("error");
       setMessage("This browser can't share your location.");
@@ -198,8 +245,88 @@ export default function CurrentLocationMap({
     );
   }, []);
 
+  const searchPlaces = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const searchTerm = query.trim();
+    if (!searchTerm) {
+      setSearchError("Enter a place, address, or landmark to search.");
+      setSearchResults([]);
+      return;
+    }
+
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    setSearching(true);
+    setSearchError("");
+    setSearchResults([]);
+
+    try {
+      const delay = Math.max(0, 1000 - (Date.now() - lastSearchAtRef.current));
+      if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+      if (controller.signal.aborted) return;
+
+      lastSearchAtRef.current = Date.now();
+      const params = new URLSearchParams({
+        q: searchTerm,
+        format: "jsonv2",
+        limit: "5",
+      });
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+        { headers: { Accept: "application/json" }, signal: controller.signal }
+      );
+      if (!response.ok) {
+        throw new Error(`Place search failed with status ${response.status}.`);
+      }
+
+      const data: unknown = await response.json();
+      if (!Array.isArray(data)) throw new Error("Place search returned an invalid response.");
+      const results = data.flatMap((entry: unknown) => {
+        if (!entry || typeof entry !== "object") return [];
+        const item = entry as Record<string, unknown>;
+        const lat = Number(item.lat);
+        const lng = Number(item.lon);
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng) ||
+          typeof item.display_name !== "string" ||
+          !item.display_name
+        ) return [];
+
+        return [{
+          id: String(item.place_id ?? item.display_name),
+          name: typeof item.name === "string" && item.name ? item.name : item.display_name.split(",")[0],
+          displayName: item.display_name,
+          lat,
+          lng,
+        }];
+      });
+
+      if (results.length === 0) {
+        setSearchError("No matching places found. Try a different search.");
+      } else {
+        setSearchResults(results);
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      console.error("Place search failed:", error);
+      setSearchError("Place search is unavailable right now. Please try again.");
+    } finally {
+      if (!controller.signal.aborted) setSearching(false);
+    }
+  }, [query]);
+
+  const selectSearchResult = (result: SearchResult) => {
+    selectedLocationRef.current = result;
+    setSelectedLocation(result);
+    setSearchResults([]);
+    setSearchError("");
+    setQuery(result.name);
+  };
+
   useEffect(() => {
-    if (ready && autoLocate) locate();
+    if (ready && autoLocate) locate(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
@@ -229,7 +356,7 @@ export default function CurrentLocationMap({
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={locate}
+            onClick={() => locate()}
             disabled={!ready || locating}
             className="inline-flex items-center justify-center gap-2 bg-white border border-[#d3d7dd] hover:border-[#16181d] text-[#16181d] font-bold px-5 py-3 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -244,16 +371,78 @@ export default function CurrentLocationMap({
           {onUseAsStart && (
             <button
               type="button"
-              onClick={() => position && onUseAsStart(position.lat, position.lng)}
-              disabled={!position}
+              onClick={() => {
+                if (selectedLocation) {
+                  onUseAsStart(selectedLocation.lat, selectedLocation.lng, selectedLocation.name);
+                } else if (position) {
+                  onUseAsStart(position.lat, position.lng);
+                }
+              }}
+              disabled={!position && !selectedLocation}
               className="inline-flex items-center justify-center gap-2 bg-[#a77a2f] hover:bg-[#8f6824] text-white font-bold px-5 py-3 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <MapPin className="w-5 h-5" />
-              Use as starting point
+              {selectedLocation ? "Use searched place as starting point" : "Use as starting point"}
             </button>
           )}
         </div>
       </div>
+
+      <form onSubmit={searchPlaces} className="mb-4">
+        <label htmlFor="clm-place-search" className="block text-sm font-bold text-[#16181d] mb-2">
+          Search for a place anywhere
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <input
+            id="clm-place-search"
+            type="search"
+            value={query}
+            onChange={(event) => {
+              searchAbortRef.current?.abort();
+              setSearching(false);
+              selectedLocationRef.current = null;
+              setQuery(event.target.value);
+              setSearchResults([]);
+              setSearchError("");
+              setSelectedLocation(null);
+            }}
+            placeholder="Search a city, address, or landmark"
+            className="min-w-[220px] flex-1 border border-[#d3d7dd] rounded-lg px-4 py-3 text-sm text-[#16181d] focus:border-[#a77a2f] focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={searching}
+            className="inline-flex items-center justify-center gap-2 bg-[#16181d] hover:bg-black text-white font-bold px-5 py-3 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {searching ? (
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            ) : (
+              <Search className="w-5 h-5" />
+            )}
+            Search
+          </button>
+        </div>
+        {searchError && (
+          <p className="mt-2 text-sm text-red-700" role="alert">{searchError}</p>
+        )}
+        {searchResults.length > 0 && (
+          <ul className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-[#d3d7dd] bg-white shadow-sm">
+            {searchResults.map((result) => (
+              <li key={result.id}>
+                <button
+                  type="button"
+                  onClick={() => selectSearchResult(result)}
+                  className="w-full border-b border-[#e3e6ea] px-4 py-3 text-left last:border-b-0 hover:bg-[#f5f6f7]"
+                >
+                  <span className="block text-sm font-bold text-[#16181d]">{result.name}</span>
+                  <span className="block text-xs text-[#5b616b]">{result.displayName}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-xs text-[#5b616b]">Place search by OpenStreetMap Nominatim.</p>
+      </form>
 
       {/* Map. `isolate` keeps Leaflet's z-indexes below page modals. */}
       <div
@@ -268,6 +457,11 @@ export default function CurrentLocationMap({
         <span className="inline-flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-[#2563eb]" /> You are here
         </span>
+        {selectedLocation && (
+          <span className="inline-flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-[#16a34a]" /> Searched location
+          </span>
+        )}
         {startLocation && (
           <span className="inline-flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-[#a77a2f]" /> Starting point

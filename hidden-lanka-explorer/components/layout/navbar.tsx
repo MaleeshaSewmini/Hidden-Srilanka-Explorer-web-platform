@@ -152,11 +152,11 @@ export default function Navbar() {
        
             { isSignedIn && (
               <Link
-                href="/trips"
+                href="/dashboard/trips"
                 onClick={() => setOpen(false)}
                 className="rounded-xl px-4 py-3 hover:bg-white/10 font-semibold text-[#123b26]"
               >
-                Trips
+                Trips Planner
               </Link>
             )}
               <Link

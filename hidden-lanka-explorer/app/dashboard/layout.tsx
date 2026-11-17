@@ -8,11 +8,11 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="dashboard-theme-scope min-h-screen bg-[#f6f1e8] text-[#17231c]">
-      <header className="border-b border-[#d7cfbf] bg-[#fffdf9]/80 backdrop-blur-sm">
+      <header className="border-b border-[#d7cfbf] bg-[white]/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
           <div>
-            <p className="text-base font-semibold uppercase tracking-[0.22em] text-[#718076]">
-              Hidden Lanka
+            <p className="text-base font-semibold uppercase tracking-[0.22em] text-[black]">
+              Hidden SriLanka Explorer
             </p>
             <h1 className="text-lg font-bold text-[#0b2417]">Admin dashboard</h1>
           </div>
