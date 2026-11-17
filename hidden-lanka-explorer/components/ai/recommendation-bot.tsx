@@ -13,12 +13,15 @@ import {
   Star,
   Bookmark,
   Check,
-  ArrowRight,
   ExternalLink,
   Bot,
 } from "lucide-react";
 import { useTrip } from "@/lib/trip-context";
-import type { PlaceRecommendation } from "@/lib/ai/knowledge-base";
+import type {
+  ConversationTurn,
+  PlaceRecommendation,
+  RecommendationResponse,
+} from "@/lib/ai/knowledge-base";
 
 type Message = {
   id: string;
@@ -27,6 +30,47 @@ type Message = {
   places?: PlaceRecommendation[];
   timestamp: string;
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPlaceRecommendation(value: unknown): value is PlaceRecommendation {
+  if (!isRecord(value)) return false;
+
+  const nullableString = (item: unknown) => item === null || typeof item === "string";
+  const nullableNumber = (item: unknown) =>
+    item === null || (typeof item === "number" && Number.isFinite(item));
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.slug === "string" &&
+    nullableString(value.category) &&
+    nullableString(value.district) &&
+    nullableString(value.description) &&
+    nullableString(value.image) &&
+    nullableNumber(value.rating) &&
+    nullableNumber(value.reviews) &&
+    nullableString(value.difficulty) &&
+    nullableString(value.season) &&
+    nullableString(value.safetyTips) &&
+    Array.isArray(value.activities) &&
+    value.activities.every((activity) => typeof activity === "string") &&
+    nullableString(value.insiderTip)
+  );
+}
+
+function isRecommendationResponse(value: unknown): value is RecommendationResponse {
+  return (
+    isRecord(value) &&
+    typeof value.reply === "string" &&
+    Array.isArray(value.recommendedDestinationIds) &&
+    value.recommendedDestinationIds.every((id) => typeof id === "string") &&
+    Array.isArray(value.places) &&
+    value.places.every(isPlaceRecommendation)
+  );
+}
 
 const SUGGESTED_PROMPTS = [
   "🌊 Quiet hidden beaches with gentle waves",
@@ -70,8 +114,8 @@ export default function RecommendationBot() {
   }, [messages, isOpen, isLoading]);
 
   const handleSend = async (userPrompt?: string) => {
-    const textToSend = userPrompt || input;
-    if (!textToSend.trim() || isLoading) return;
+    const textToSend = (userPrompt || input).trim();
+    if (!textToSend || isLoading) return;
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -85,33 +129,58 @@ export default function RecommendationBot() {
     setIsLoading(true);
 
     try {
+      const history: ConversationTurn[] = messages
+        .filter(
+          (message) =>
+            !message.id.startsWith("welcome") &&
+            !message.id.startsWith("ai-err-")
+        )
+        .slice(-8)
+        .map((message): ConversationTurn => ({
+          role: message.sender === "ai" ? "assistant" : "user",
+          content: message.text,
+        }));
+
       const res = await fetch("/api/ai/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: textToSend }),
+        body: JSON.stringify({ message: textToSend, history }),
       });
 
-      const data = await res.json();
+      let data: unknown;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("The recommendation service returned an invalid response.");
+      }
 
-      if (res.ok && data.reply) {
+      if (res.ok && isRecommendationResponse(data)) {
+        const recommendedIds = new Set(data.recommendedDestinationIds);
         const aiMessage: Message = {
           id: `ai-${Date.now()}`,
           sender: "ai",
           text: data.reply,
-          places: data.places || [],
+          places: data.places.filter((place) => recommendedIds.has(place.id)),
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         };
         setMessages((prev) => [...prev, aiMessage]);
       } else {
-        throw new Error(data.error || "Failed to get response");
+        const errorMessage =
+          isRecord(data) && typeof data.error === "string"
+            ? data.error
+            : "The recommendation service returned an invalid response.";
+        throw new Error(errorMessage);
       }
-    } catch {
+    } catch (error) {
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-err-${Date.now()}`,
           sender: "ai",
-          text: "I couldn't reach the travel engine right now, but feel free to explore our curated places on the Explore page or try again in a moment!",
+          text:
+            error instanceof Error
+              ? error.message
+              : "The recommendation service is temporarily unavailable. Please try again.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -232,31 +301,47 @@ export default function RecommendationBot() {
                             className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-[#faf8f5] transition hover:shadow-md"
                           >
                             <div className="relative h-28 w-full overflow-hidden bg-slate-200">
-                              <Image
-                                src={place.image}
-                                alt={place.name}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                              />
+                              {place.image ? (
+                                <Image
+                                  src={place.image}
+                                  alt={place.name}
+                                  fill
+                                  unoptimized
+                                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                />
+                              ) : (
+                                <div className="flex h-full items-center justify-center bg-[#e8eee8] text-[#52715d]">
+                                  <MapPin size={24} aria-hidden />
+                                </div>
+                              )}
                               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-                              <div className="absolute top-2 left-2 flex gap-1.5">
-                                <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-[#f1cf88] backdrop-blur-xs">
-                                  {place.category}
-                                </span>
-                              </div>
+                              {place.category && (
+                                <div className="absolute top-2 left-2 flex gap-1.5">
+                                  <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-[#f1cf88] backdrop-blur-xs">
+                                    {place.category}
+                                  </span>
+                                </div>
+                              )}
 
-                              <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur-xs">
-                                <Star size={11} className="fill-amber-400 text-amber-400" />
-                                {place.rating}
-                              </div>
+                              {place.rating !== null && (
+                                <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur-xs">
+                                  <Star size={11} className="fill-amber-400 text-amber-400" />
+                                  {place.rating.toFixed(1)}
+                                  {place.reviews !== null && place.reviews > 0 && (
+                                    <span>({place.reviews})</span>
+                                  )}
+                                </div>
+                              )}
 
-                              <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between text-white">
-                                <span className="flex items-center gap-1 text-[11px] font-medium text-white/90">
-                                  <MapPin size={11} className="text-[#f1cf88]" />
-                                  {place.district}
-                                </span>
-                              </div>
+                              {place.district && (
+                                <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between text-white">
+                                  <span className="flex items-center gap-1 text-[11px] font-medium text-white/90">
+                                    <MapPin size={11} className="text-[#f1cf88]" />
+                                    {place.district}
+                                  </span>
+                                </div>
+                              )}
                             </div>
 
                             <div className="p-3">
@@ -264,9 +349,32 @@ export default function RecommendationBot() {
                                 {place.name}
                               </h4>
 
-                              <p className="mt-1 text-xs text-slate-600 line-clamp-2 leading-normal">
-                                {place.description}
-                              </p>
+                              {place.description && (
+                                <p className="mt-1 text-xs text-slate-600 line-clamp-2 leading-normal">
+                                  {place.description}
+                                </p>
+                              )}
+
+                              {(place.difficulty || place.season) && (
+                                <p className="mt-1 text-[11px] text-slate-500">
+                                  {[place.difficulty && `Difficulty: ${place.difficulty}`, place.season && `Best season: ${place.season}`]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </p>
+                              )}
+
+                              {place.safetyTips && (
+                                <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">
+                                  <span className="font-semibold">Safety information:</span>{" "}
+                                  {place.safetyTips}
+                                </p>
+                              )}
+
+                              {place.insiderTip && (
+                                <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">
+                                  <span className="font-semibold">Local tip:</span> {place.insiderTip}
+                                </p>
+                              )}
 
                               {place.matchReason && (
                                 <p className="mt-1.5 text-[11px] text-[#a77a2f] font-medium flex items-center gap-1">
@@ -277,7 +385,7 @@ export default function RecommendationBot() {
 
                               <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
                                 <Link
-                                  href={`/places?search=${encodeURIComponent(place.name)}`}
+                                  href={`/places/${encodeURIComponent(place.slug)}`}
                                   className="inline-flex items-center gap-1 text-xs font-semibold text-[#173b2c] hover:underline"
                                 >
                                   View on Places
@@ -368,6 +476,7 @@ export default function RecommendationBot() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              maxLength={1000}
               placeholder="Ask: '3 days in Ella', 'Secret waterfalls'..."
               className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-[#173b2c] focus:bg-white transition"
               disabled={isLoading}
