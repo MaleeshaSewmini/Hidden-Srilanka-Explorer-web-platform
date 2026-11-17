@@ -160,6 +160,27 @@ export default function TripMap({
     });
   };
 
+  const createAvailableIcon = () => {
+    if (!leafletLib) return undefined;
+    return leafletLib.divIcon({
+      className: "custom-avail-marker",
+      html: `
+        <div style="
+          background: #718078;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          border: 2px solid #ffffff;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+          opacity: 0.8;
+          cursor: pointer;
+        "></div>
+      `,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+  };
+
   if (!leafletLib) {
     return (
       <div
@@ -285,6 +306,68 @@ export default function TripMap({
             </Marker>
           );
         })}
+
+        {/* Other available catalog places on map */}
+        {allPlaces
+          .filter(
+            (p) =>
+              typeof p.latitude === "number" &&
+              typeof p.longitude === "number" &&
+              !destinations.some((d) => d.id === p.id)
+          )
+          .map((place) => (
+            <Marker
+              key={`avail-${place.id}`}
+              position={[place.latitude, place.longitude]}
+              icon={createAvailableIcon()}
+            >
+              <Popup>
+                <div className="w-52 p-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#718078]">
+                    {place.district} · {place.category_name}
+                  </span>
+                  <h4 className="font-semibold text-[#0b2417] mt-0.5">{place.name}</h4>
+                  {place.hero_image_url && (
+                    <img
+                      src={place.hero_image_url}
+                      alt={place.name}
+                      className="mt-2 h-20 w-full rounded-md object-cover"
+                    />
+                  )}
+                  {onAddPlace && (
+                    <button
+                      type="button"
+                      onClick={() => onAddPlace(place)}
+                      className="mt-3 w-full bg-[#c99a43] hover:bg-[#b58735] text-[#0b2417] text-xs font-bold py-1.5 px-3 rounded-md transition-colors"
+                    >
+                      + Add to Trip
+                    </button>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+        {/* Fallback direct distance lines if no OSRM polyline */}
+        {(!routePlan || routePlan.fullPolyline.length <= 1) &&
+          destinations.map((place) => {
+            if (typeof place.latitude !== "number" || typeof place.longitude !== "number") return null;
+            return (
+              <Polyline
+                key={`line-${place.id}`}
+                positions={[
+                  [startLocation.latitude, startLocation.longitude],
+                  [place.latitude, place.longitude],
+                ]}
+                pathOptions={{
+                  color: "#c99a43",
+                  weight: 2.5,
+                  opacity: 0.85,
+                  dashArray: "6 6",
+                }}
+              />
+            );
+          })}
 
         {/* Route Polylines */}
         {routePlan && routePlan.fullPolyline.length > 1 && (

@@ -19,6 +19,7 @@ import {
   loadUserTrips,
   markPlaceAsVisited,
   saveTrip,
+  unmarkPlaceAsVisited,
   VisitedPlaceRecord,
 } from "@/lib/trip-planner/storage";
 import { generateDefaultTripExpenses } from "@/lib/trip-planner/budget";
@@ -51,6 +52,16 @@ import {
   RefreshCw,
   Eye,
 } from "lucide-react";
+
+const SECONDARY_TEXT_CSS = String.raw`
+.trip-planner-root [class~="text-[#5b616b]"],
+.trip-planner-root [class~="text-[#718078]"],
+.trip-planner-root [class~="text-[#123b26]/50"],
+.trip-planner-root [class~="text-[#123b26]/60"],
+.trip-planner-root [class~="text-[#123b26]/70"],
+.trip-planner-root [class~="text-[#123b26]/80"],
+.trip-planner-root [class*="text-gray-"] { color: #000000 !important; }
+`;
 
 // TripMap uses Leaflet which requires browser window (ssr: false)
 const TripMap = dynamic(() => import("@/components/trips/trip-map"), {
@@ -367,26 +378,30 @@ export default function TripPlannerView() {
     (dest: TripDestination) => {
       if (!activeTrip) return;
       const place = dest.place ?? allPlaces.find((p) => p.id === dest.place_id);
+      const isVisited = !dest.is_visited;
+      const visitedAt = isVisited ? new Date().toISOString() : null;
 
-      if (dest.is_visited && place) {
+      if (isVisited && place && visitedAt) {
         const record: VisitedPlaceRecord = {
           place_id: dest.place_id,
           place_name: place.name,
           district: place.district,
           latitude: place.latitude,
           longitude: place.longitude,
-          visited_at: new Date().toISOString(),
+          visited_at: visitedAt,
           trip_id: activeTrip.id,
           trip_title: activeTrip.title,
         };
         markPlaceAsVisited(record);
+      } else if (!isVisited) {
+        unmarkPlaceAsVisited(dest.place_id);
       }
 
       const updated: Trip = {
         ...activeTrip,
         destinations: (activeTrip.destinations ?? []).map((d) =>
           d.id === dest.id
-            ? { ...d, is_visited: dest.is_visited, visited_at: dest.is_visited ? new Date().toISOString() : null }
+            ? { ...d, is_visited: isVisited, visited_at: visitedAt }
             : d
         ),
       };
@@ -452,7 +467,8 @@ export default function TripPlannerView() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#f6f1e8]">
+    <div className="trip-planner-root min-h-screen bg-[#f6f1e8]">
+      <style>{SECONDARY_TEXT_CSS}</style>
       {/* Header */}
       <div className="bg-[#123b26] text-white px-4 sm:px-6 py-6 border-b border-[#c99a43]/30">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

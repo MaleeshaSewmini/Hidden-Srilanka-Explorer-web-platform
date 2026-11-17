@@ -20,6 +20,7 @@ import {
   loadUserTrips,
   markPlaceAsVisited,
   saveTrip,
+  unmarkPlaceAsVisited,
   VisitedPlaceRecord,
 } from "@/lib/trip-planner/storage";
 import { generateDefaultTripExpenses } from "@/lib/trip-planner/budget";
@@ -104,6 +105,14 @@ const GLOBAL_CSS = String.raw`
 .tp-root .bg-\[\#f6f1e8\]            { background-color: white; }
 .tp-root .hover\:bg-\[\#f6f1e8\]:hover { background-color: #f1f2f4; }
 .tp-root .border-\[\#c99a43\]\/20    { border-color: #e3e6ea; }
+
+.tp-root [class~="text-[#5b616b]"],
+.tp-root [class~="text-[#718078]"],
+.tp-root [class~="text-[#123b26]/50"],
+.tp-root [class~="text-[#123b26]/60"],
+.tp-root [class~="text-[#123b26]/70"],
+.tp-root [class~="text-[#123b26]/80"],
+.tp-root [class*="text-gray-"] { color: #000000 !important; }
 `;
 
 // TripMap uses Leaflet which requires browser window (ssr: false)
@@ -549,6 +558,7 @@ export default function TripPlannerView() {
   // ─────────────────────────── State ───────────────────────────
   const [activeTab, setActiveTab] = useState<DashboardTab>("trips");
   const [allPlaces, setAllPlaces] = useState<PlaceRecord[]>([]);
+  const [placeCategoryNames, setPlaceCategoryNames] = useState<string[]>([]);
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
   const [activeTrip, setActiveTrip] = useState<Trip | null>(null);
   const [startLocation, setStartLocation] = useState<LocationPoint>(SRI_LANKA_HUBS[0]);
@@ -564,22 +574,71 @@ export default function TripPlannerView() {
   const [error, setError] = useState<string | null>(null);
   const routeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ─────────────────────────── Load published places from Supabase ───────────────────────────
+  // ─────────────────────────── Load public places from Supabase ───────────────────────────
   useEffect(() => {
+    let cancelled = false;
+
     const supabase = createClient();
-    supabase
-      .from("places")
-      .select(
-        "id, name, slug, district, nearest_town, category_id, short_description, description, hero_image_url, image_url, latitude, longitude, difficulty, best_season, entrance_fee, hidden_tips, safety_tips, warnings, road_condition, activities, rating_avg, rating_count, like_count"
-      )
-      .eq("status", "published")
-      .order("name")
-      .then(({ data, error: err }) => {
-        if (!err && data) {
-          setAllPlaces(data as PlaceRecord[]);
+
+    async function loadPlaces() {
+      try {
+        const { data, error: placesError } = await supabase
+          .from("places")
+          .select("*")
+          .in("status", ["approved", "published"])
+          .order("name");
+
+        if (placesError) throw placesError;
+        if (cancelled) return;
+
+        const { data: categories, error: categoriesError } = await supabase
+          .from("categories")
+          .select("id, name")
+          .order("name");
+        if (categoriesError) {
+          console.error("Failed to load place categories:", categoriesError);
+          if (!cancelled) setError("Failed to load place categories.");
         }
-        setPlacesLoading(false);
-      });
+
+        const categoryById = new Map(
+          (categories ?? []).map((category) => [
+            String(category.id),
+            category.name,
+          ])
+        );
+        if (!cancelled) {
+          setPlaceCategoryNames(
+            (categories ?? [])
+              .map((category) => category.name)
+              .filter((name): name is string => Boolean(name))
+          );
+        }
+
+        const catalogPlaces = (data ?? []).map((place) => ({
+          ...place,
+          category_name:
+            place.category_name ??
+            place.category ??
+            categoryById.get(String(place.category_id)) ??
+            "General",
+          latitude:
+            typeof place.latitude === "number" ? place.latitude : Number.NaN,
+          longitude:
+            typeof place.longitude === "number" ? place.longitude : Number.NaN,
+        }));
+        setAllPlaces(catalogPlaces as PlaceRecord[]);
+      } catch (placesError) {
+        console.error("Failed to load discoverable places:", placesError);
+        if (!cancelled) setError("Failed to load places. Please try again.");
+      } finally {
+        if (!cancelled) setPlacesLoading(false);
+      }
+    }
+
+    void loadPlaces();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ─────────────────────────── Load user trips ───────────────────────────
@@ -787,19 +846,23 @@ export default function TripPlannerView() {
     (dest: TripDestination) => {
       if (!activeTrip) return;
       const place = dest.place ?? allPlaces.find((p) => p.id === dest.place_id);
+      const isVisited = !dest.is_visited;
+      const visitedAt = isVisited ? new Date().toISOString() : null;
 
-      if (dest.is_visited && place) {
+      if (isVisited && place && visitedAt) {
         const record: VisitedPlaceRecord = {
           place_id: dest.place_id,
           place_name: place.name,
           district: place.district,
           latitude: place.latitude,
           longitude: place.longitude,
-          visited_at: new Date().toISOString(),
+          visited_at: visitedAt,
           trip_id: activeTrip.id,
           trip_title: activeTrip.title,
         };
         markPlaceAsVisited(record);
+      } else if (!isVisited) {
+        unmarkPlaceAsVisited(dest.place_id);
       }
 
       const updated: Trip = {
@@ -808,8 +871,8 @@ export default function TripPlannerView() {
           d.id === dest.id
             ? {
                 ...d,
-                is_visited: dest.is_visited,
-                visited_at: dest.is_visited ? new Date().toISOString() : null,
+                is_visited: isVisited,
+                visited_at: visitedAt,
               }
             : d
         ),
@@ -906,15 +969,19 @@ export default function TripPlannerView() {
     },
   };
 
-  // Use the visitor's real position as the trip's starting point.
+  // Use the visitor's GPS position or a searched map location as the trip's starting point.
   // Spreading keeps any other fields your LocationPoint type has.
-  const handleUseCurrentLocation = (latitude: number, longitude: number) => {
+  const handleUseCurrentLocation = (
+    latitude: number,
+    longitude: number,
+    name = "My current location"
+  ) => {
     setStartLocation({
       ...startLocation,
-      name: "My current location",
+      name,
       latitude,
       longitude,
-    } as LocationPoint);
+    });
   };
 
   // My trips shows the current-location map here. Discover has its own distance
@@ -1281,6 +1348,7 @@ export default function TripPlannerView() {
               ) : (
                 <NearbyPlacesDiscovery
                   places={allPlaces}
+                  categoryNames={placeCategoryNames}
                   startLocation={startLocation}
                   tripPlaceIds={activeTripDestIds}
                   onAddPlace={handleAddPlace}
@@ -1347,9 +1415,14 @@ export default function TripPlannerView() {
                   </div>
 
                   <ItineraryDayView
+                    key={activeTrip.id}
                     destinations={activeTrip.destinations ?? []}
                     allAvailablePlaces={allPlaces}
-                    durationDays={activeTrip.duration_days}
+                    durationDays={
+                      Number.isFinite(activeTrip.duration_days)
+                        ? Math.max(1, Math.floor(activeTrip.duration_days))
+                        : 1
+                    }
                     onUpdateDestinations={(destinations) =>
                       updateTrip({ ...activeTrip, destinations })
                     }

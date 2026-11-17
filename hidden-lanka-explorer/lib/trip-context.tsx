@@ -8,12 +8,7 @@ import {
   useState,
   useCallback,
 } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-);
+import { createClient } from "@/lib/supabase/client";
 
 export type TripContextType = {
   placeIds: string[];
@@ -22,7 +17,7 @@ export type TripContextType = {
   toggleTrip: (id: string) => void;
   isPlaceInTrip: (id: string) => boolean;
   likedPlaceIds: string[];
-  toggleLike: (id: string) => void;
+  toggleLike: (id: string) => Promise<void>;
   isPlaceLiked: (id: string) => boolean;
   clear: () => void;
 };
@@ -37,6 +32,7 @@ export function TripProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const [supabase] = useState(() => createClient());
   const [placeIds, setPlaceIds] = useState<string[]>([]);
   const [likedPlaceIds, setLikedPlaceIds] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -82,7 +78,7 @@ export function TripProvider({
 
       // Fetch liked places from Supabase
       const { data: likesData } = await supabase
-        .from("user_likes")
+        .from("likes")
         .select("place_id")
         .eq("user_id", user.id);
 
@@ -112,7 +108,7 @@ export function TripProvider({
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
   // 2. Add place to trip
   const addPlace = useCallback(
@@ -132,7 +128,7 @@ export function TripProvider({
           .upsert({ user_id: userId, place_id: id }, { onConflict: "user_id,place_id" });
       }
     },
-    [userId]
+    [supabase, userId]
   );
 
   // 3. Remove place from trip
@@ -153,7 +149,7 @@ export function TripProvider({
           .match({ user_id: userId, place_id: id });
       }
     },
-    [userId]
+    [supabase, userId]
   );
 
   // 4. Toggle trip
@@ -184,19 +180,36 @@ export function TripProvider({
       });
 
       if (userId) {
-        if (isAlreadyLiked) {
-          await supabase
-            .from("user_likes")
-            .delete()
-            .match({ user_id: userId, place_id: id });
-        } else {
-          await supabase
-            .from("user_likes")
-            .upsert({ user_id: userId, place_id: id }, { onConflict: "user_id,place_id" });
+        try {
+          const { error } = isAlreadyLiked
+            ? await supabase
+                .from("likes")
+                .delete()
+                .match({ user_id: userId, place_id: id })
+            : await supabase
+                .from("likes")
+                .insert({ user_id: userId, place_id: id });
+
+          if (error && (isAlreadyLiked || error.code !== "23505")) {
+            throw error;
+          }
+        } catch (error) {
+          setLikedPlaceIds((current) => {
+            const reverted = isAlreadyLiked
+              ? current.includes(id)
+                ? current
+                : [...current, id]
+              : current.filter((item) => item !== id);
+            try {
+              localStorage.setItem(LIKES_STORAGE_KEY, JSON.stringify(reverted));
+            } catch {}
+            return reverted;
+          });
+          throw error;
         }
       }
     },
-    [likedPlaceIds, userId]
+    [likedPlaceIds, supabase, userId]
   );
 
   // 6. Helpers

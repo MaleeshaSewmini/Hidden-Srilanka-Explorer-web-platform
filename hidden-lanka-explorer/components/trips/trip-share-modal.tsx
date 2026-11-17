@@ -166,7 +166,7 @@ export default function TripShareModal({
             <button
               type="button"
               onClick={handleCopyLink}
-              className="flex items-center gap-1 shrink-0 rounded-lg bg-[#123b26] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#c99a43] hover:text-[#0b2417] transition"
+              className="flex items-center gap-1 shrink-0 rounded-lg bg-[#123b26] px-3 py-1.5 text-sm font-bold text-white hover:bg-[] hover:text-[#0b2417] transition"
             >
               {copiedLink ? <Check size={13} /> : <Copy size={13} />}
               <span>{copiedLink ? "Copied!" : "Copy"}</span>

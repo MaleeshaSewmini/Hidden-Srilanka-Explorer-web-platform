@@ -68,6 +68,9 @@ export type PlaceDetail = {
   rating?: number | null;
   reviews?: number | null;
   likes?: number | null;
+  rating_avg?: number | null;
+  rating_count?: number | null;
+  like_count?: number | null;
   created_at?: string | null;
 };
 

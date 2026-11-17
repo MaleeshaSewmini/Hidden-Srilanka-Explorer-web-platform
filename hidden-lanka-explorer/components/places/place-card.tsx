@@ -29,20 +29,65 @@ export type PlaceCardProps = {
 };
 
 export default function PlaceCard({ place }: PlaceCardProps) {
-  const { placeIds, addPlace, removePlace } = useTrip();
+  const {
+    placeIds,
+    addPlace,
+    removePlace,
+    isPlaceLiked,
+    toggleLike: togglePlaceLike,
+  } = useTrip();
 
-  const [liked, setLiked] = useState(false);
-  const [likes, setLikes] = useState<number>(
-    place.likes ?? (place as any).like_count ?? 12
-  );
   const [showModal, setShowModal] = useState(false);
 
   const inTrip = placeIds.includes(place.id);
+  const liked = isPlaceLiked(place.id);
+  const likes = place.likes ?? place.like_count ?? 0;
+  const [likeDelta, setLikeDelta] = useState(0);
+  const [likePending, setLikePending] = useState(false);
+  const [likeError, setLikeError] = useState<string | null>(null);
+  const reviews = place.reviews ?? place.rating_count ?? 0;
+  const rating = place.rating ?? place.rating_avg;
+  const likeCount = Math.max(0, likes + likeDelta);
+
+  async function updateLike() {
+    if (likePending) return;
+
+    const wasLiked = liked;
+    setLikePending(true);
+    setLikeError(null);
+    setLikeDelta((delta) => delta + (wasLiked ? -1 : 1));
+
+    try {
+      await togglePlaceLike(place.id);
+    } catch (error) {
+      const failure =
+        typeof error === "object" && error !== null
+          ? (error as {
+              code?: unknown;
+              details?: unknown;
+              hint?: unknown;
+              message?: unknown;
+            })
+          : null;
+      console.error("Failed to update place like:", {
+        code: failure?.code,
+        details: failure?.details,
+        hint: failure?.hint,
+        message:
+          error instanceof Error
+            ? error.message
+            : failure?.message ?? String(error),
+      });
+      setLikeDelta((delta) => delta + (wasLiked ? 1 : -1));
+      setLikeError("Like could not be saved.");
+    } finally {
+      setLikePending(false);
+    }
+  }
 
   function toggleLike(e: React.MouseEvent) {
     e.stopPropagation();
-    setLiked((value) => !value);
-    setLikes((value: number) => value + (liked ? -1 : 1));
+    void updateLike();
   }
 
   function toggleTrip(e: React.MouseEvent) {
@@ -105,9 +150,11 @@ export default function PlaceCard({ place }: PlaceCardProps) {
               {categoryName}
             </div>
 
-            <div className="absolute right-3.5 top-3.5 rounded-full bg-white/100 px-3 py-1 text-xs font-semibold text-[#0b2417] shadow-sm backdrop-blur-md">
-              ★ {place.rating ?? 4.8}
-            </div>
+            {rating != null && rating > 0 && (
+              <div className="absolute right-3.5 top-3.5 rounded-full bg-white/100 px-3 py-1 text-xs font-semibold text-[#0b2417] shadow-sm backdrop-blur-md">
+                ★ {rating.toFixed(1)}
+              </div>
+            )}
           </div>
 
           {/* Card Body */}
@@ -164,13 +211,17 @@ style={{ fontFamily: "Arial, sans-serif" }}
   </button>
 
           <div className="flex items-center justify-between border-t border-[#0b2417]/10 pt-3 text- text-[#718078]">
-            <span>{place.reviews ?? 12} reviews</span>
+            <span>
+              {reviews} review{reviews === 1 ? "" : "s"}
+            </span>
 
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 aria-label="Like place"
+                aria-pressed={liked}
                 onClick={toggleLike}
+                disabled={likePending}
                 className={`rounded-full p-1.5 transition ${
                   liked ? "bg-rose-50 text-rose-500" : "hover:bg-[#f6f1e8]"
                 }`}
@@ -178,7 +229,12 @@ style={{ fontFamily: "Arial, sans-serif" }}
                 <Heart size={16} fill={liked ? "currentColor" : "none"} />
               </button>
 
-              <span className="mr-1 text-xs font-semibold text-[#5a6b62]">{likes}</span>
+              <span className="mr-1 text-xs font-semibold text-[#5a6b62]">{likeCount}</span>
+              {likeError && (
+                <span className="text-xs text-red-700" role="alert">
+                  {likeError}
+                </span>
+              )}
 
               <button
                 type="button"
@@ -199,13 +255,10 @@ style={{ fontFamily: "Arial, sans-serif" }}
 
       {/* Modal with Cross Mark Close */}
       <PlaceDetailModal
-        place={place}
+        place={{ ...place, rating: rating ?? null, reviews, likes: likeCount }}
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        onLike={() => {
-          setLiked((v) => !v);
-          setLikes((v: number) => v + (liked ? -1 : 1));
-        }}
+        onLike={() => void updateLike()}
         onTripToggle={() => {
           if (inTrip) removePlace(place.id);
           else addPlace(place.id);

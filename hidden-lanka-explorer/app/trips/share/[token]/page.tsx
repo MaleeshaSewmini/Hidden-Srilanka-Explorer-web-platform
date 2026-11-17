@@ -16,6 +16,12 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+/* Shared typography: Arial everywhere, black text */
+const FONT: React.CSSProperties = {
+  fontFamily: "Arial, Helvetica, sans-serif",
+  color: "#000000",
+};
+
 export default function SharedTripPage({
   params,
 }: {
@@ -82,8 +88,11 @@ export default function SharedTripPage({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f6f1e8] text-sm text-[#718078]">
-        <Compass className="animate-spin text-[#c99a43] mr-2" size={24} />
+      <div
+        style={FONT}
+        className="flex min-h-screen items-center justify-center bg-white text-base"
+      >
+        <Compass className="animate-spin mr-3" size={24} color="#000" />
         <span>Loading shared Sri Lanka trip itinerary...</span>
       </div>
     );
@@ -91,17 +100,18 @@ export default function SharedTripPage({
 
   if (!trip) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#f6f1e8] p-4 text-center">
-        <MapPin size={36} className="text-[#c99a43] mb-3" />
-        <h2 className="font-display text-2xl font-bold text-[#0b2417]">
-          Trip Not Found
-        </h2>
-        <p className="mt-2 text-sm text-[#718078] max-w-md">
+      <div
+        style={FONT}
+        className="flex min-h-screen flex-col items-center justify-center bg-white p-6 text-center"
+      >
+        <MapPin size={40} className="mb-4" color="#000" />
+        <h2 className="text-2xl font-bold">Trip Not Found</h2>
+        <p className="mt-3 max-w-md text-base">
           This itinerary may be private or the shared link is no longer valid.
         </p>
         <Link
           href="/dashboard/trips"
-          className="mt-6 rounded-2xl bg-[#123b26] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#c99a43] hover:text-[#0b2417]"
+          className="mt-8 rounded-lg bg-black px-5 py-2.5 text-sm font-bold !text-white hover:bg-neutral-800"
         >
           Explore All Trips
         </Link>
@@ -112,81 +122,74 @@ export default function SharedTripPage({
   const destinations = trip.destinations || [];
 
   return (
-    <div className="min-h-screen bg-[#f6f1e8] text-[#0b2417] pb-24">
-      {/* Top Banner */}
-      <div className="border-b border-[#0b2417]/10 bg-white py-4 shadow-xs">
+    <div style={FONT} className="min-h-screen bg-white pb-24">
+      {/* Header */}
+      <header className="border-b-2 border-black bg-white py-6">
         <div className="container-main">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#c99a43]">
-                <span>Shared Community Itinerary</span>
-              </div>
-              <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#0b2417] mt-0.5">
-                {trip.title}
-              </h1>
+              <p className="text-sm font-bold">Shared Community Itinerary</p>
+              <h1 className="mt-1 text-3xl font-bold sm:text-4xl">{trip.title}</h1>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 print:hidden">
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-[#0b2417] hover:bg-gray-50 shadow-xs"
+                className="inline-flex items-center gap-2 rounded-lg border-2 border-black bg-white px-4 py-2.5 text-sm font-bold hover:bg-neutral-100"
+                style={FONT}
               >
-                {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                {copied ? <Check size={16} /> : <Copy size={16} />}
                 <span>{copied ? "Link Copied!" : "Share Link"}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#123b26] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#c99a43] hover:text-[#0b2417] shadow-xs"
+                className="inline-flex items-center gap-2 rounded-lg border-2 border-black bg-black px-4 py-2.5 text-sm font-bold !text-white hover:bg-neutral-800"
               >
-                <Printer size={14} />
+                <Printer size={16} />
                 <span>Print Itinerary</span>
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="container-main mt-6 space-y-6">
-        {/* Trip Meta Overview */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-3xl bg-white p-5 border border-[#0b2417]/10 shadow-sm text-xs">
+      <main className="container-main mt-8 space-y-8">
+        {/* Trip overview */}
+        <section className="grid grid-cols-1 gap-6 rounded-xl border border-neutral-300 bg-white p-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <span className="text-gray-500 block">Starting Hub:</span>
-            <span className="font-bold text-[#0b2417] text-sm">
-              {trip.start_location_name}
-            </span>
+            <span className="block text-sm font-bold">Starting Hub</span>
+            <span className="mt-1 block text-lg">{trip.start_location_name}</span>
           </div>
 
           <div>
-            <span className="text-gray-500 block">Duration & Travelers:</span>
-            <span className="font-bold text-[#0b2417] text-sm">
+            <span className="block text-sm font-bold">Duration &amp; Travelers</span>
+            <span className="mt-1 block text-lg">
               {trip.duration_days} Days · {trip.traveler_count} Travelers
             </span>
           </div>
 
           <div>
-            <span className="text-gray-500 block">Transport:</span>
-            <span className="font-bold text-[#0b2417] text-sm capitalize">
-              {trip.transport_mode}
-            </span>
+            <span className="block text-sm font-bold">Transport</span>
+            <span className="mt-1 block text-lg capitalize">{trip.transport_mode}</span>
           </div>
 
           <div>
-            <span className="text-gray-500 block">Total Route Distance:</span>
-            <span className="font-bold text-emerald-800 text-sm">
+            <span className="block text-sm font-bold">Total Route Distance</span>
+            <span className="mt-1 block text-lg">
               {routePlan ? `${routePlan.totalDistanceKm} km` : "Estimating..."}
             </span>
           </div>
-        </div>
+        </section>
 
-        {/* Map View */}
-        <div className="rounded-3xl border border-[#0b2417]/10 bg-white p-4 shadow-sm space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#718078]">
-            <span>Interactive Road Itinerary</span>
+        {/* Map */}
+        <section className="space-y-4 rounded-xl border border-neutral-300 bg-white p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">Interactive Road Itinerary</h2>
             {routePlan?.isOsrm && (
-              <span className="text-emerald-700">OSRM Road Geometry</span>
+              <span className="text-sm font-bold">OSRM Road Geometry</span>
             )}
           </div>
 
@@ -202,49 +205,43 @@ export default function SharedTripPage({
             routePlan={routePlan}
             height="500px"
           />
-        </div>
+        </section>
 
-        {/* Daily Schedule List */}
-        <div className="space-y-4">
-          <h3 className="font-display text-xl font-bold text-[#0b2417]">
-            Daily Stops & Guidance
-          </h3>
+        {/* Daily schedule */}
+        <section className="space-y-5">
+          <h2 className="text-2xl font-bold">Daily Stops &amp; Guidance</h2>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {destinations.map((dest, idx) => {
               const place = dest.place;
               if (!place) return null;
 
               return (
-                <div
+                <article
                   key={dest.id}
-                  className="rounded-2xl border border-[#0b2417]/10 bg-white p-4 shadow-sm"
+                  className="rounded-xl border border-neutral-300 bg-white p-5"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#0b2417] text-xs font-bold text-[#f1cf88]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black text-base font-bold !text-white">
                         {idx + 1}
                       </div>
 
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#c99a43]">
-                            Day {dest.day_number || 1} · {dest.visit_time_slot || "Morning"}
-                          </span>
-                        </div>
-                        <h4 className="font-bold text-base text-[#0b2417]">
-                          {place.name}
-                        </h4>
-                        <div className="text-xs text-[#718078] mt-0.5">
+                        <p className="text-sm font-bold">
+                          Day {dest.day_number || 1} · {dest.visit_time_slot || "Morning"}
+                        </p>
+                        <h3 className="mt-1 text-xl font-bold">{place.name}</h3>
+                        <p className="mt-1 text-sm">
                           {place.district} · {place.category_name || "Nature"}
                           {place.entrance_fee && (
-                            <span className="ml-2 text-emerald-800 font-medium">
+                            <span className="ml-3 font-bold">
                               Entrance: {place.entrance_fee}
                             </span>
                           )}
-                        </div>
+                        </p>
                         {place.short_description && (
-                          <p className="mt-1.5 text-xs text-gray-600 leading-relaxed">
+                          <p className="mt-3 text-base leading-relaxed">
                             {place.short_description}
                           </p>
                         )}
@@ -254,54 +251,58 @@ export default function SharedTripPage({
                     <Link
                       href={`/places/${place.slug}`}
                       target="_blank"
-                      className="rounded-xl border border-gray-200 p-2 text-gray-500 hover:text-black"
+                      aria-label={`Open ${place.name}`}
+                      className="rounded-lg border-2 border-black p-2 hover:bg-neutral-100 print:hidden"
                     >
-                      <ExternalLink size={16} />
+                      <ExternalLink size={18} color="#000" />
                     </Link>
                   </div>
 
-                  {/* Safety Advice */}
+                  {/* Safety advice */}
                   {(place.safety_tips || place.warnings || dest.notes) && (
-                    <div className="mt-3 rounded-xl bg-amber-50 p-2.5 text-xs text-amber-950 border border-amber-200/60 space-y-1">
+                    <div className="mt-4 space-y-2 rounded-lg border border-neutral-400 bg-neutral-50 p-4 text-sm">
                       {place.warnings && (
-                        <div className="flex items-start gap-1 text-rose-900 font-medium">
-                          <AlertTriangle size={13} className="shrink-0 mt-0.5 text-rose-600" />
+                        <div className="flex items-start gap-2 font-bold">
+                          <AlertTriangle size={18} className="mt-0.5 shrink-0" color="#000" />
                           <span>{place.warnings}</span>
                         </div>
                       )}
                       {dest.notes && (
-                        <div className="text-gray-700">
+                        <div>
                           <b>Personal Note:</b> {dest.notes}
                         </div>
                       )}
                     </div>
                   )}
-                </div>
+                </article>
               );
             })}
           </div>
-        </div>
+        </section>
 
-        {/* Budget overview if available */}
+        {/* Budget */}
         {trip.expenses && trip.expenses.length > 0 && (
-          <div className="rounded-3xl border border-[#0b2417]/10 bg-white p-5 shadow-sm space-y-3">
-            <h3 className="font-bold text-sm text-[#0b2417] uppercase tracking-wider">
-              Estimated Expenses Summary
-            </h3>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs">
+          <section className="space-y-4 rounded-xl border border-neutral-300 bg-white p-6">
+            <h2 className="text-xl font-bold">Estimated Expenses Summary</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {trip.expenses.map((e) => (
-                <div key={e.id} className="rounded-xl bg-[#f6f1e8] p-3">
-                  <div className="text-gray-500 capitalize">{e.category.replace("_", " ")}</div>
-                  <div className="font-bold text-sm text-[#0b2417] mt-0.5">
+                <div
+                  key={e.id}
+                  className="rounded-lg border border-neutral-300 bg-neutral-50 p-4"
+                >
+                  <div className="text-sm font-bold capitalize">
+                    {e.category.replace("_", " ")}
+                  </div>
+                  <div className="mt-1 text-xl font-bold">
                     {trip.budget_currency} {e.amount.toLocaleString()}
                   </div>
-                  <div className="text-[11px] text-gray-600 mt-1 truncate">{e.title}</div>
+                  <div className="mt-1 truncate text-sm">{e.title}</div>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, PointerEvent, KeyboardEvent, ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Camera, Check, MapPin, MessageSquare, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, MapPin, MessageSquare, Plus, Sparkles } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 /* ==========================================================================
    Top contributors
@@ -13,36 +14,20 @@ import { ArrowLeft, ArrowRight, Camera, Check, MapPin, MessageSquare, Plus } fro
 const HEADING_FROM: "left" | "right" = "left";
 const CARDS_FROM: "left" | "right" = "left";
 
-const contributors = [
-  {
-    name: "Island Explorer",
-    username: "@islandexplorer",
-    places: 42,
-    reviews: 68,
-    photos: 120,
-  },
-  {
-    name: "Wild Lanka",
-    username: "@wildlanka",
-    places: 31,
-    reviews: 51,
-    photos: 94,
-  },
-  {
-    name: "Mountain Walker",
-    username: "@mountainwalker",
-    places: 27,
-    reviews: 43,
-    photos: 81,
-  },
-  {
-    name: "Coastal Soul",
-    username: "@coastalsoul",
-    places: 19,
-    reviews: 37,
-    photos: 72,
-  },
-];
+type Contributor = {
+  id: string;
+  name: string;
+  username: string;
+  places: number;
+  reviews: number;
+  total: number;
+};
+
+type ProfileRow = {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+};
 
 const AVATAR_COLORS = ["#0b2417", "#0f4c5c", "#41592c", "#7a5a26"];
 const GAP = 20;
@@ -186,6 +171,89 @@ export default function Contributors() {
   const [canNext, setCanNext] = useState(true);
   const [active, setActive] = useState(0);
   const [following, setFollowing] = useState<Record<string, boolean>>({});
+  const [contributors, setContributors] = useState<Contributor[]>([]);
+  const [contributorsLoading, setContributorsLoading] = useState(true);
+  const [contributorsError, setContributorsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadContributors() {
+      try {
+        const supabase = createClient();
+        const [profilesResult, placesResult, reviewsResult] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id, username, display_name"),
+          supabase
+            .from("places")
+            .select("created_by")
+            .in("status", ["approved", "published"]),
+          supabase.from("reviews").select("user_id"),
+        ]);
+
+        if (profilesResult.error) throw profilesResult.error;
+        if (placesResult.error) throw placesResult.error;
+        if (reviewsResult.error) throw reviewsResult.error;
+
+        const placeCounts = new Map<string, number>();
+        (placesResult.data ?? []).forEach((place) => {
+          if (place.created_by) {
+            placeCounts.set(
+              place.created_by,
+              (placeCounts.get(place.created_by) ?? 0) + 1
+            );
+          }
+        });
+
+        const reviewCounts = new Map<string, number>();
+        (reviewsResult.data ?? []).forEach((review) => {
+          if (review.user_id) {
+            reviewCounts.set(
+              review.user_id,
+              (reviewCounts.get(review.user_id) ?? 0) + 1
+            );
+          }
+        });
+
+        const rankedContributors = ((profilesResult.data ?? []) as ProfileRow[])
+          .map((profile) => {
+            const places = placeCounts.get(profile.id) ?? 0;
+            const reviews = reviewCounts.get(profile.id) ?? 0;
+            return {
+              id: profile.id,
+              name: profile.display_name || profile.username || "Explorer",
+              username: profile.username ? `@${profile.username}` : "Community member",
+              places,
+              reviews,
+              total: places + reviews,
+            };
+          })
+          .filter((contributor) => contributor.total > 0)
+          .sort(
+            (a, b) =>
+              b.total - a.total ||
+              b.reviews - a.reviews ||
+              b.places - a.places
+          )
+          .slice(0, 12);
+
+        if (!cancelled) setContributors(rankedContributors);
+      } catch (error) {
+        console.error("Failed to load contributor data:", error);
+        if (!cancelled) {
+          setContributorsError("Contributor data could not be loaded.");
+        }
+      } finally {
+        if (!cancelled) setContributorsLoading(false);
+      }
+    }
+
+    void loadContributors();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Start the animations the first time the section is on screen
   useEffect(() => {
@@ -216,12 +284,18 @@ export default function Contributors() {
   const update = useCallback(() => {
     const el = trackRef.current;
     if (!el) return;
+    if (contributors.length === 0) {
+      setCanPrev(false);
+      setCanNext(false);
+      setActive(0);
+      return;
+    }
     const max = el.scrollWidth - el.clientWidth;
     setCanPrev(el.scrollLeft > 4);
     setCanNext(el.scrollLeft < max - 4);
     const atEnd = max > 0 && el.scrollLeft >= max - 4;
     setActive(atEnd ? contributors.length - 1 : Math.min(contributors.length - 1, Math.round(el.scrollLeft / step())));
-  }, [step]);
+  }, [contributors.length, step]);
 
   useEffect(() => {
     update();
@@ -334,74 +408,113 @@ export default function Contributors() {
           onPointerCancel={endDrag}
           onClickCapture={onClickCapture}
         >
-          {contributors.map((person, i) => {
-            const isFollowing = !!following[person.username];
-            const countDelay = 350 + i * 120 + 700;
-            return (
-              <article
-                key={person.username}
-                data-card
-                className="ct-card"
-                style={{ ["--i" as string]: i, ["--c" as string]: AVATAR_COLORS[i % AVATAR_COLORS.length] }}
-                aria-roledescription="slide"
-                aria-label={`${i + 1} of ${contributors.length}`}
-              >
-                <div className="ct-body">
-                  <div className="ct-row">
-                    <span className="ct-avatar" aria-hidden>
-                      {person.name.charAt(0)}
-                    </span>
-                    <span className="ct-rank">#{i + 1}</span>
+          {contributorsLoading ? (
+            <p className="text-sm text-[#5f6d66]" role="status">
+              Loading contributors…
+            </p>
+          ) : contributorsError ? (
+            <p className="text-sm text-red-700" role="alert">
+              {contributorsError}
+            </p>
+          ) : contributors.length === 0 ? (
+            <p className="text-sm text-[#5f6d66]">
+              No community contributions yet.
+            </p>
+          ) : (
+            contributors.map((person, i) => {
+              const isFollowing = !!following[person.id];
+              const countDelay = 350 + i * 120 + 700;
+              return (
+                <article
+                  key={person.id}
+                  data-card
+                  className="ct-card"
+                  style={{
+                    ["--i" as string]: i,
+                    ["--c" as string]:
+                      AVATAR_COLORS[i % AVATAR_COLORS.length],
+                  }}
+                  aria-roledescription="slide"
+                  aria-label={`${i + 1} of ${contributors.length}`}
+                >
+                  <div className="ct-body">
+                    <div className="ct-row">
+                      <span className="ct-avatar" aria-hidden>
+                        {person.name.charAt(0)}
+                      </span>
+                      <span className="ct-rank">#{i + 1}</span>
+                    </div>
+
+                    <h3 className="ct-name">{person.name}</h3>
+                    <p className="ct-user">{person.username}</p>
+
+                    <div className="ct-stats">
+                      <div>
+                        <MapPin size={16} aria-hidden />
+                        <div className="ct-num">
+                          <CountUp
+                            value={person.places}
+                            run={inView}
+                            delay={countDelay}
+                          />
+                        </div>
+                        <div className="ct-lbl">Places</div>
+                      </div>
+                      <div>
+                        <MessageSquare size={16} aria-hidden />
+                        <div className="ct-num">
+                          <CountUp
+                            value={person.reviews}
+                            run={inView}
+                            delay={countDelay}
+                          />
+                        </div>
+                        <div className="ct-lbl">Reviews</div>
+                      </div>
+                      <div>
+                        <Sparkles size={16} aria-hidden />
+                        <div className="ct-num">
+                          <CountUp
+                            value={person.total}
+                            run={inView}
+                            delay={countDelay}
+                          />
+                        </div>
+                        <div className="ct-lbl">Contributions</div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="ct-follow"
+                      aria-pressed={isFollowing}
+                      onClick={() =>
+                        setFollowing((prev) => ({
+                          ...prev,
+                          [person.id]: !prev[person.id],
+                        }))
+                      }
+                    >
+                      {isFollowing ? (
+                        <Check size={16} aria-hidden />
+                      ) : (
+                        <Plus size={16} aria-hidden />
+                      )}
+                      {isFollowing ? "Following" : "Follow"}
+                    </button>
                   </div>
-
-                  <h3 className="ct-name">{person.name}</h3>
-                  <p className="ct-user">{person.username}</p>
-
-                  <div className="ct-stats">
-                    <div>
-                      <MapPin size={16} aria-hidden />
-                      <div className="ct-num">
-                        <CountUp value={person.places} run={inView} delay={countDelay} />
-                      </div>
-                      <div className="ct-lbl">Places</div>
-                    </div>
-                    <div>
-                      <MessageSquare size={16} aria-hidden />
-                      <div className="ct-num">
-                        <CountUp value={person.reviews} run={inView} delay={countDelay} />
-                      </div>
-                      <div className="ct-lbl">Reviews</div>
-                    </div>
-                    <div>
-                      <Camera size={16} aria-hidden />
-                      <div className="ct-num">
-                        <CountUp value={person.photos} run={inView} delay={countDelay} />
-                      </div>
-                      <div className="ct-lbl">Photos</div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="ct-follow"
-                    aria-pressed={isFollowing}
-                    onClick={() => setFollowing((prev) => ({ ...prev, [person.username]: !prev[person.username] }))}
-                  >
-                    {isFollowing ? <Check size={16} aria-hidden /> : <Plus size={16} aria-hidden />}
-                    {isFollowing ? "Following" : "Follow"}
-                  </button>
-                </div>
-              </article>
-            );
-          })}
+                </article>
+              );
+            })
+          )}
         </div>
 
         <div className="ct-foot">
           <div className="ct-progress" aria-hidden>
-            <i style={{ width: `${((active + 1) / contributors.length) * 100}%` }} />
+            <i style={{ width: `${contributors.length ? ((active + 1) / contributors.length) * 100 : 0}%` }} />
           </div>
           <div className="ct-count">
-            {String(active + 1).padStart(2, "0")} <span>/ {String(contributors.length).padStart(2, "0")}</span>
+            {String(contributors.length ? active + 1 : 0).padStart(2, "0")} <span>/ {String(contributors.length).padStart(2, "0")}</span>
           </div>
         </div>
       </div>

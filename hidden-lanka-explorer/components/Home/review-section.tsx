@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, PointerEvent, KeyboardEvent, ReactNode } from "react";
 import { ArrowLeft, ArrowRight, MapPin, Quote, Star } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 /* ==========================================================================
    Reviews
@@ -10,32 +11,33 @@ import { ArrowLeft, ArrowRight, MapPin, Quote, Star } from "lucide-react";
    from the right.
    ========================================================================== */
 
-const reviews = [
-  {
-    name: "Community Explorer",
-    place: "Hiriketiya Bay",
-    rating: 5,
-    text: "A beautiful place away from the busy tourist areas. The community recommendations made the trip much easier.",
-  },
-  {
-    name: "Island Wanderer",
-    place: "Knuckles Mountain Range",
-    rating: 5,
-    text: "The hiking information was incredibly useful. The scenery was even better than expected.",
-  },
-  {
-    name: "Travel Photographer",
-    place: "Bambarakanda Falls",
-    rating: 4,
-    text: "A spectacular waterfall surrounded by incredible mountain scenery.",
-  },
-  {
-    name: "Weekend Explorer",
-    place: "Pottuvil Lagoon",
-    rating: 5,
-    text: "Peaceful, beautiful and completely different from the usual beach experience.",
-  },
-];
+type ReviewRow = {
+  id: string;
+  place_id: string;
+  user_id: string | null;
+  rating: number | null;
+  body: string | null;
+  created_at: string | null;
+};
+
+type ReviewItem = {
+  id: string;
+  name: string;
+  place: string;
+  rating: number;
+  text: string;
+};
+
+type PlaceRow = {
+  id: string;
+  name: string | null;
+};
+
+type ProfileRow = {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+};
 
 const AVATAR_COLORS = ["#0f4c5c", "#41592c", "#0b2417", "#7a5a26"];
 
@@ -141,6 +143,103 @@ export default function ReviewsSection() {
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(true);
   const [active, setActive] = useState(0);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReviews() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("reviews")
+          .select("id, place_id, user_id, rating, body, created_at")
+          .order("created_at", { ascending: false })
+          .limit(12);
+
+        if (error) throw error;
+
+        const rows = (data ?? []) as ReviewRow[];
+        const placeIds = [...new Set(rows.map((review) => review.place_id))];
+        const userIds = [
+          ...new Set(
+            rows
+              .map((review) => review.user_id)
+              .filter((userId): userId is string => Boolean(userId))
+          ),
+        ];
+        const placesById = new Map<string, PlaceRow>();
+        const profilesById = new Map<string, ProfileRow>();
+
+        if (placeIds.length > 0) {
+          const { data: places, error: placesError } = await supabase
+            .from("places")
+            .select("id, name")
+            .in("id", placeIds);
+          if (placesError) {
+            console.error("Failed to load review place names:", placesError);
+          } else {
+            (places ?? []).forEach((place) =>
+              placesById.set(place.id, place as PlaceRow)
+            );
+          }
+        }
+
+        if (userIds.length > 0) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, display_name, username")
+            .in("id", userIds);
+          if (profilesError) {
+            console.error("Failed to load review author names:", profilesError);
+          } else {
+            (profiles ?? []).forEach((profile) =>
+              profilesById.set(profile.id, profile as ProfileRow)
+            );
+          }
+        }
+
+        const loadedReviews = rows.flatMap((review) => {
+          const text = review.body?.trim();
+          if (!text) return [];
+
+          const profile = review.user_id
+            ? profilesById.get(review.user_id)
+            : undefined;
+          const place = placesById.get(review.place_id);
+          const rating = Number(review.rating);
+
+          return [
+            {
+              id: review.id,
+              name: profile?.display_name || profile?.username || "Explorer",
+              place: place?.name || "Sri Lanka",
+              rating: Number.isFinite(rating)
+                ? Math.min(5, Math.max(0, rating))
+                : 0,
+              text,
+            },
+          ];
+        });
+
+        if (!cancelled) setReviews(loadedReviews);
+      } catch (error) {
+        console.error("Failed to load community reviews:", error);
+        if (!cancelled) {
+          setReviewsError("Community reviews could not be loaded.");
+        }
+      } finally {
+        if (!cancelled) setReviewsLoading(false);
+      }
+    }
+
+    void loadReviews();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Start the animations the first time the section is on screen
   useEffect(() => {
@@ -171,12 +270,18 @@ export default function ReviewsSection() {
   const update = useCallback(() => {
     const el = trackRef.current;
     if (!el) return;
+    if (reviews.length === 0) {
+      setCanPrev(false);
+      setCanNext(false);
+      setActive(0);
+      return;
+    }
     const max = el.scrollWidth - el.clientWidth;
     setCanPrev(el.scrollLeft > 4);
     setCanNext(el.scrollLeft < max - 4);
     const atEnd = max > 0 && el.scrollLeft >= max - 4;
     setActive(atEnd ? reviews.length - 1 : Math.min(reviews.length - 1, Math.round(el.scrollLeft / step())));
-  }, [step]);
+  }, [reviews.length, step]);
 
   useEffect(() => {
     update();
@@ -265,56 +370,78 @@ export default function ReviewsSection() {
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
         >
-          {reviews.map((review, i) => (
-            <article
-              key={`${review.name}-${review.place}`}
-              data-card
-              className="rv-card"
-              style={{ ["--i" as string]: i, ["--c" as string]: AVATAR_COLORS[i % AVATAR_COLORS.length] }}
-              aria-roledescription="slide"
-              aria-label={`${i + 1} of ${reviews.length}`}
-            >
-              <div className="rv-body">
-                <Quote className="rv-quote" aria-hidden />
+          {reviewsLoading ? (
+            <p className="text-sm text-[#5f6d66]" role="status">
+              Loading community reviews…
+            </p>
+          ) : reviewsError ? (
+            <p className="text-sm text-red-700" role="alert">
+              {reviewsError}
+            </p>
+          ) : reviews.length === 0 ? (
+            <p className="text-sm text-[#5f6d66]">
+              No community reviews yet.
+            </p>
+          ) : (
+            reviews.map((review, i) => (
+              <article
+                key={review.id}
+                data-card
+                className="rv-card"
+                style={{
+                  ["--i" as string]: i,
+                  ["--c" as string]:
+                    AVATAR_COLORS[i % AVATAR_COLORS.length],
+                }}
+                aria-roledescription="slide"
+                aria-label={`${i + 1} of ${reviews.length}`}
+              >
+                <div className="rv-body">
+                  <Quote className="rv-quote" aria-hidden />
 
-                <div className="rv-stars" role="img" aria-label={`Rated ${review.rating} out of 5`}>
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <Star
-                      key={index}
-                      size={18}
-                      strokeWidth={1.8}
-                      fill={index < review.rating ? "currentColor" : "none"}
-                      aria-hidden
-                    />
-                  ))}
-                  <em>{review.rating}.0</em>
-                </div>
+                  <div
+                    className="rv-stars"
+                    role="img"
+                    aria-label={`Rated ${review.rating} out of 5`}
+                  >
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star
+                        key={index}
+                        size={18}
+                        strokeWidth={1.8}
+                        fill={index < review.rating ? "currentColor" : "none"}
+                        aria-hidden
+                      />
+                    ))}
+                    <em>{review.rating}.0</em>
+                  </div>
 
-                <p className="rv-text">&ldquo;{review.text}&rdquo;</p>
+                  <p className="rv-text">&ldquo;{review.text}&rdquo;</p>
 
-                <div className="rv-divider" />
-                <div className="rv-foot-card">
-                  <span className="rv-avatar" aria-hidden>
-                    {initials(review.name)}
-                  </span>
-                  <div>
-                    <div className="rv-who">{review.name}</div>
-                    <div className="rv-where">
-                      <MapPin size={13} aria-hidden /> Visited {review.place}
+                  <div className="rv-divider" />
+                  <div className="rv-foot-card">
+                    <span className="rv-avatar" aria-hidden>
+                      {initials(review.name)}
+                    </span>
+                    <div>
+                      <div className="rv-who">{review.name}</div>
+                      <div className="rv-where">
+                        <MapPin size={13} aria-hidden /> Visited {review.place}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            ))
+          )}
         </div>
 
         <div className="rv-foot">
           <div className="rv-progress" aria-hidden>
-            <i style={{ width: `${((active + 1) / reviews.length) * 100}%` }} />
+            <i style={{ width: `${reviews.length ? ((active + 1) / reviews.length) * 100 : 0}%` }} />
           </div>
           <div className="rv-count">
-            {String(active + 1).padStart(2, "0")} <span>/ {String(reviews.length).padStart(2, "0")}</span>
+            {String(reviews.length ? active + 1 : 0).padStart(2, "0")} <span>/ {String(reviews.length).padStart(2, "0")}</span>
           </div>
         </div>
       </div>

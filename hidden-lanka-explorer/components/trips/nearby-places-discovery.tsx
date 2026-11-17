@@ -46,6 +46,7 @@ import {
 
 interface NearbyPlacesDiscoveryProps {
   places: PlaceRecord[];
+  categoryNames?: string[];
   startLocation: LocationPoint;
   tripPlaceIds: string[];
   onAddPlace: (place: PlaceRecord) => void;
@@ -58,9 +59,23 @@ interface NearbyPlacesDiscoveryProps {
 type SortKey = "distance_asc" | "distance_desc" | "rating" | "name";
 
 type PlaceWithDistance = PlaceRecord & {
+  distance_km?: number;
+  estimated_drive_minutes?: number;
+};
+
+type MappedPlace = PlaceWithDistance & {
   distance_km: number;
   estimated_drive_minutes: number;
 };
+
+function hasMapData(place: PlaceWithDistance): place is MappedPlace {
+  return (
+    Number.isFinite(place.latitude) &&
+    Number.isFinite(place.longitude) &&
+    Number.isFinite(place.distance_km) &&
+    Number.isFinite(place.estimated_drive_minutes)
+  );
+}
 
 const RADIUS_OPTIONS = [
   { label: "All island", value: 0 },
@@ -96,9 +111,12 @@ type CardPlace = ComponentProps<typeof PlaceCard>["place"];
 function toCardPlace(p: PlaceRecord): CardPlace {
   return {
     ...p,
+    category: p.category_name ?? "Hidden Gem",
     likes: p.like_count ?? 0,
     image: p.hero_image_url ?? p.image_url,
-  } as unknown as CardPlace;
+    rating: p.rating_avg,
+    reviews: p.rating_count,
+  };
 }
 
 /* ─────────────────────────── Map ─────────────────────────── */
@@ -134,7 +152,7 @@ function DiscoveryMap({
   height = 440,
 }: {
   start: LocationPoint;
-  places: PlaceWithDistance[];
+  places: MappedPlace[];
   radiusKm: number;
   tripPlaceIds: string[];
   highlightedId: string | null;
@@ -338,6 +356,7 @@ function DiscoveryMap({
 
 export default function NearbyPlacesDiscovery({
   places,
+  categoryNames,
   startLocation,
   tripPlaceIds,
   onAddPlace,
@@ -355,21 +374,25 @@ export default function NearbyPlacesDiscovery({
   const [locError, setLocError] = useState("");
 
   // Categories for the filter
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    places.forEach((p) => {
-      if (p.category_name) set.add(p.category_name);
-    });
-    return Array.from(set).sort();
-  }, [places]);
+  const categoryOptions = useMemo(() => {
+    const categories = new Set(categoryNames);
+    if (categoryNames === undefined) {
+      places.forEach((place) => {
+        if (place.category_name) categories.add(place.category_name);
+      });
+    }
+    return Array.from(categories).sort((a, b) => a.localeCompare(b));
+  }, [places, categoryNames]);
 
-  // Distances from the measuring point, then filters
+  // Keep catalog places without coordinates in the list, but only map places
+  // whose distances can be calculated.
   const processedPlaces = useMemo<PlaceWithDistance[]>(() => {
     return places
-      .filter(
-        (p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
-      )
       .map((place) => {
+        const hasCoordinates =
+          Number.isFinite(place.latitude) && Number.isFinite(place.longitude);
+        if (!hasCoordinates) return place;
+
         const dist = calculateHaversineDistance(
           startLocation.latitude,
           startLocation.longitude,
@@ -383,7 +406,18 @@ export default function NearbyPlacesDiscovery({
         };
       })
       .filter((place) => {
-        if (selectedRadius > 0 && place.distance_km > selectedRadius) return false;
+        if (selectedRadius > 0 && !tripPlaceIds.includes(place.id)) {
+          if (place.distance_km == null || place.distance_km > selectedRadius) {
+            return false;
+          }
+        }
+
+        if (
+          place.distance_km != null &&
+          !Number.isFinite(place.distance_km)
+        ) {
+          return false;
+        }
 
         if (
           selectedCategory !== "all" &&
@@ -403,24 +437,80 @@ export default function NearbyPlacesDiscovery({
         }
         return true;
       });
-  }, [places, startLocation, selectedRadius, selectedCategory, searchQuery]);
+  }, [
+    places,
+    startLocation,
+    selectedRadius,
+    selectedCategory,
+    searchQuery,
+    tripPlaceIds,
+  ]);
 
   const sortedPlaces = useMemo(() => {
     return [...processedPlaces].sort((a, b) => {
-      if (sortBy === "distance_asc") return a.distance_km - b.distance_km;
-      if (sortBy === "distance_desc") return b.distance_km - a.distance_km;
+      if (sortBy === "distance_asc") {
+        return (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity);
+      }
+      if (sortBy === "distance_desc") {
+        return (b.distance_km ?? -Infinity) - (a.distance_km ?? -Infinity);
+      }
       if (sortBy === "rating") return (b.rating_avg ?? 0) - (a.rating_avg ?? 0);
       return a.name.localeCompare(b.name);
     });
   }, [processedPlaces, sortBy]);
 
+  const mappedPlaces = useMemo(
+    () => {
+      const byId = new Map<string, MappedPlace>();
+      sortedPlaces.forEach((place) => {
+        if (hasMapData(place)) byId.set(place.id, place);
+      });
+
+      places.forEach((place) => {
+        if (
+          !tripPlaceIds.includes(place.id) ||
+          !Number.isFinite(place.latitude) ||
+          !Number.isFinite(place.longitude)
+        ) {
+          return;
+        }
+
+        const distance = calculateHaversineDistance(
+          startLocation.latitude,
+          startLocation.longitude,
+          place.latitude,
+          place.longitude
+        );
+        byId.set(place.id, {
+          ...place,
+          distance_km: distance,
+          estimated_drive_minutes: estimateTravelMinutes(distance, "driving"),
+        });
+      });
+
+      return Array.from(byId.values());
+    },
+    [sortedPlaces, places, tripPlaceIds, startLocation]
+  );
+
+  const placesWithoutLocation = sortedPlaces.filter(
+    (place) =>
+      !Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)
+  ).length;
+
   const nearest = useMemo(
-    () => (processedPlaces.length ? Math.min(...processedPlaces.map((p) => p.distance_km)) : 0),
-    [processedPlaces]
+    () =>
+      mappedPlaces.length
+        ? Math.min(...mappedPlaces.map((place) => place.distance_km))
+        : 0,
+    [mappedPlaces]
   );
   const farthest = useMemo(
-    () => (processedPlaces.length ? Math.max(...processedPlaces.map((p) => p.distance_km)) : 0),
-    [processedPlaces]
+    () =>
+      mappedPlaces.length
+        ? Math.max(...mappedPlaces.map((place) => place.distance_km))
+        : 0,
+    [mappedPlaces]
   );
 
   // ───────── Choose where to measure from ─────────
@@ -584,7 +674,7 @@ export default function NearbyPlacesDiscovery({
               className={FIELD}
             >
               <option value="all">All categories</option>
-              {categories.map((cat) => (
+              {categoryOptions.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
                 </option>
@@ -616,7 +706,7 @@ export default function NearbyPlacesDiscovery({
       <div>
         <DiscoveryMap
           start={startLocation}
-          places={sortedPlaces}
+          places={mappedPlaces}
           radiusKm={selectedRadius}
           tripPlaceIds={tripPlaceIds}
           highlightedId={highlightedId}
@@ -642,7 +732,15 @@ export default function NearbyPlacesDiscovery({
           <span className="inline-flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-[#a77a2f]" /> In your trip
           </span>
-          <span>Lines show straight-line distance. Drive times are estimates.</span>
+          <span>
+            Lines show straight-line distance. Drive times are estimates.
+          </span>
+          {placesWithoutLocation > 0 && (
+            <span>
+              {placesWithoutLocation} place
+              {placesWithoutLocation !== 1 ? "s have" : " has"} no map location.
+            </span>
+          )}
         </div>
       </div>
 
@@ -653,7 +751,9 @@ export default function NearbyPlacesDiscovery({
         </h3>
         {sortedPlaces.length > 0 && (
           <p className="text-sm text-[#5b616b]">
-            Nearest {formatDistance(nearest)}, farthest {formatDistance(farthest)}
+            {mappedPlaces.length > 0
+              ? `Nearest ${formatDistance(nearest)}, farthest ${formatDistance(farthest)}`
+              : "Distances unavailable for these places"}
           </p>
         )}
       </div>
@@ -693,13 +793,22 @@ export default function NearbyPlacesDiscovery({
                 {/* Distance and trip action */}
                 <div className={`${CARD} mt-3 p-4 flex items-center justify-between gap-4`}>
                   <div className="min-w-0">
-                    <p className="text-base font-bold text-[#16181d]">
-                      {formatDistance(place.distance_km)} away
-                    </p>
-                    <p className="text-sm text-[#5b616b] flex items-center gap-1.5 mt-0.5">
-                      <Clock className="w-4 h-4 text-[#a77a2f]" />
-                      About {formatDuration(place.estimated_drive_minutes)} by road
-                    </p>
+                    {place.distance_km != null &&
+                    place.estimated_drive_minutes != null ? (
+                      <>
+                        <p className="text-base font-bold text-[#16181d]">
+                          {formatDistance(place.distance_km)} away
+                        </p>
+                        <p className="text-sm text-[#5b616b] flex items-center gap-1.5 mt-0.5">
+                          <Clock className="w-4 h-4 text-[#a77a2f]" />
+                          About {formatDuration(place.estimated_drive_minutes)} by road
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-[#5b616b]">
+                        Distance unavailable — no map location
+                      </p>
+                    )}
                   </div>
 
                   {isInTrip ? (
