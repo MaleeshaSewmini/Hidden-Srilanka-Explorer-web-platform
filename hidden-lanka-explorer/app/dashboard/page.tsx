@@ -389,8 +389,9 @@ export default function AdminDashboardPage() {
 
       await loadPlaces();
     } catch (error) {
-      console.error("UPDATE_PLACE_STATUS_ERROR", error);
-      setErrorMessage("The status update failed. Please verify the table permissions and fields.");
+      const message = getErrorMessage(error);
+      console.error("UPDATE_PLACE_STATUS_ERROR", message);
+      setErrorMessage(`The status update failed: ${message}`);
     } finally {
       setUpdating(null);
     }

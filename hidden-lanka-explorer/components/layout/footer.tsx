@@ -61,7 +61,7 @@ const STYLES = `
 
 .ft-bottom{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; margin-top:64px; padding-top:24px;
   border-top:1px solid rgba(255,255,255,.2); font-size:14px; color:rgba(255,255,255,.7); }
-.ft-legal{ display:flex; flex-wrap:wrap; gap:16px; }
+.ft-legal{ display:flex; flex-wrap:wrap; gap:16px; font-size:18px; }
 .ft-legal a{ color:rgba(255,255,255,.8); text-decoration:none; }
 .ft-legal a:hover{ color:#fff; }
 .ft-top{ display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:999px; font-size:13px; font-weight:700; color:#fff; cursor:pointer;
