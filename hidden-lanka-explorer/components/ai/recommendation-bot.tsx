@@ -31,6 +31,9 @@ type Message = {
   timestamp: string;
 };
 
+/* Modern classic type: Arial everywhere, pure black text */
+const FONT_STACK = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -203,7 +206,7 @@ export default function RecommendationBot() {
   return (
     <>
       {/* ========================================================
-          FLOATING AI BUTTON (Bottom Left to complement A11y on Right)
+          FLOATING AI BUTTON
       ======================================================== */}
       {!isOpen && (
         <button
@@ -211,15 +214,11 @@ export default function RecommendationBot() {
           onClick={() => setIsOpen(true)}
           aria-label="Open AI Travel Guide"
           title="Ask Lanka AI Guide"
-          className="fixed bottom-6 left-6 z-[9990] flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#173b2c] via-[#22573f] to-[#123b26] px-4 py-3.5 text-white shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-emerald-900/40 active:scale-95 cursor-pointer border border-[#c99a43]/40 group"
+          style={{ fontFamily: FONT_STACK }}
+          className="fixed bottom-6 left-6 z-[9990] flex cursor-pointer items-center gap-3 rounded-full border-2 border-black bg-white px-5 py-3.5 text-black shadow-[0_6px_20px_rgba(0,0,0,0.18)] transition duration-200 hover:bg-black hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:scale-95"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f1cf88]/20 text-[#f1cf88] transition group-hover:rotate-12">
-          
-          </span>
-          <span className="font-semibold text-sm tracking-tight text-[#f5ead7]">
-            Ask AI Guide
-          </span>
-          <span className="flex h-2 w-2 rounded-full bg-[#f1cf88] animate-pulse" />
+          <Sparkles size={20} aria-hidden />
+          <span className="text-base font-bold">Ask AI Guide</span>
         </button>
       )}
 
@@ -227,22 +226,23 @@ export default function RecommendationBot() {
           AI CHAT DRAWER / POPUP
       ======================================================== */}
       {isOpen && (
-        <div className="fixed inset-x-3 bottom-3 sm:inset-auto sm:bottom-6 sm:left-6 z-[9995] flex flex-col w-auto sm:w-[430px] h-[610px] max-h-[88vh] rounded-[28px] border border-slate-200/90 bg-white text-slate-900 shadow-2xl overflow-hidden backdrop-blur-xl">
+        <div
+          style={{ fontFamily: FONT_STACK }}
+          className="fixed inset-x-3 bottom-3 z-[9995] flex h-[680px] max-h-[90vh] w-auto flex-col overflow-hidden rounded-2xl border-2 border-black bg-white text-black shadow-[0_16px_48px_rgba(0,0,0,0.28)] sm:inset-auto sm:bottom-6 sm:left-6 sm:w-[460px]"
+        >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-[#123b26] via-[#1a4a33] to-[#172b3d] px-5 py-4 text-white">
+          <div className="flex items-center justify-between border-b-2 border-black bg-white px-5 py-4 text-black">
             <div className="flex items-center gap-3">
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 border border-white/20 text-[#f1cf88]">
-                <Bot size={22} />
-                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#123b26] bg-emerald-400" />
+              <div className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-black bg-white text-black">
+                <Bot size={24} />
+                <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-black" />
               </div>
               <div>
-                <h3 className="font-bold text-base tracking-tight flex items-center gap-1.5 text-white">
+                <h3 className="flex items-center gap-1.5 text-xl font-bold text-black">
                   Lanka AI Guide
-                  <Sparkles size={14} className="text-[#f1cf88]" />
+                  <Sparkles size={16} className="text-black" />
                 </h3>
-                <p className="text-[11px] font-medium text-emerald-200/90">
-                  Hidden Sri Lanka Explorer Specialist
-                </p>
+                <p className="text-sm text-black">Hidden Sri Lanka explorer</p>
               </div>
             </div>
 
@@ -251,23 +251,24 @@ export default function RecommendationBot() {
                 type="button"
                 onClick={resetChat}
                 title="Restart chat"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white transition cursor-pointer"
+                aria-label="Restart chat"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-black transition hover:bg-black hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
               >
-                <RotateCcw size={15} />
+                <RotateCcw size={18} />
               </button>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
                 aria-label="Close AI Guide"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white transition cursor-pointer"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-black transition hover:bg-black hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-black"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/60 text-sm">
+          <div className="flex-1 space-y-5 overflow-y-auto bg-[#f5f5f5] p-4 text-base text-black">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -277,19 +278,19 @@ export default function RecommendationBot() {
               >
                 {/* Bubble */}
                 <div
-                  className={`max-w-[88%] rounded-2xl p-3.5 leading-relaxed shadow-xs ${
+                  className={`max-w-[92%] rounded-2xl border p-4 text-base leading-relaxed text-black ${
                     msg.sender === "user"
-                      ? "bg-[#173b2c] text-white rounded-br-xs"
-                      : "bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs"
+                      ? "rounded-br-sm border-black bg-[#e4e4e4]"
+                      : "rounded-bl-sm border-[#c8c8c8] bg-white"
                   }`}
                 >
-                  <div className="whitespace-pre-line text-sm">{msg.text}</div>
+                  <div className="whitespace-pre-line text-base text-black">{msg.text}</div>
 
                   {/* Recommendation Cards if attached */}
                   {msg.places && msg.places.length > 0 && (
-                    <div className="mt-3.5 space-y-2.5 pt-2 border-t border-slate-100">
-                      <span className="block text-[11px] font-bold uppercase tracking-wider text-[#a77a2f]">
-                        ✨ Recommended Places
+                    <div className="mt-4 space-y-3 border-t border-black pt-3">
+                      <span className="block text-base font-bold text-black">
+                        Recommended places
                       </span>
 
                       {msg.places.map((place) => {
@@ -298,9 +299,9 @@ export default function RecommendationBot() {
                         return (
                           <div
                             key={place.id}
-                            className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-[#faf8f5] transition hover:shadow-md"
+                            className="group flex flex-col overflow-hidden rounded-xl border border-black bg-white transition hover:shadow-md"
                           >
-                            <div className="relative h-28 w-full overflow-hidden bg-slate-200">
+                            <div className="relative h-36 w-full overflow-hidden bg-[#e4e4e4]">
                               {place.image ? (
                                 <Image
                                   src={place.image}
@@ -310,106 +311,104 @@ export default function RecommendationBot() {
                                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                                 />
                               ) : (
-                                <div className="flex h-full items-center justify-center bg-[#e8eee8] text-[#52715d]">
-                                  <MapPin size={24} aria-hidden />
+                                <div className="flex h-full items-center justify-center bg-[#e4e4e4] text-black">
+                                  <MapPin size={28} aria-hidden />
                                 </div>
                               )}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
                               {place.category && (
-                                <div className="absolute top-2 left-2 flex gap-1.5">
-                                  <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-[#f1cf88] backdrop-blur-xs">
+                                <div className="absolute left-2 top-2 flex gap-1.5">
+                                  <span className="rounded-full border border-black bg-white px-2.5 py-1 text-sm font-bold text-black">
                                     {place.category}
                                   </span>
                                 </div>
                               )}
 
                               {place.rating !== null && (
-                                <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-bold text-amber-300 backdrop-blur-xs">
-                                  <Star size={11} className="fill-amber-400 text-amber-400" />
+                                <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full border border-black bg-white px-2.5 py-1 text-sm font-bold text-black">
+                                  <Star size={13} className="fill-black text-black" />
                                   {place.rating.toFixed(1)}
                                   {place.reviews !== null && place.reviews > 0 && (
-                                    <span>({place.reviews})</span>
+                                    <span className="font-normal">({place.reviews})</span>
                                   )}
                                 </div>
                               )}
 
                               {place.district && (
-                                <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between text-white">
-                                  <span className="flex items-center gap-1 text-[11px] font-medium text-white/90">
-                                    <MapPin size={11} className="text-[#f1cf88]" />
-                                    {place.district}
-                                  </span>
+                                <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded-full border border-black bg-white px-2.5 py-1 text-sm font-medium text-black">
+                                  <MapPin size={13} className="text-black" />
+                                  {place.district}
                                 </div>
                               )}
                             </div>
 
-                            <div className="p-3">
-                              <h4 className="font-bold text-sm text-slate-900 group-hover:text-[#173b2c] transition-colors">
-                                {place.name}
-                              </h4>
+                            <div className="p-4">
+                              <h4 className="text-lg font-bold text-black">{place.name}</h4>
 
                               {place.description && (
-                                <p className="mt-1 text-xs text-slate-600 line-clamp-2 leading-normal">
+                                <p className="mt-1.5 text-base leading-normal text-black line-clamp-3">
                                   {place.description}
                                 </p>
                               )}
 
                               {(place.difficulty || place.season) && (
-                                <p className="mt-1 text-[11px] text-slate-500">
-                                  {[place.difficulty && `Difficulty: ${place.difficulty}`, place.season && `Best season: ${place.season}`]
+                                <p className="mt-2 text-sm text-black">
+                                  {[
+                                    place.difficulty && `Difficulty: ${place.difficulty}`,
+                                    place.season && `Best season: ${place.season}`,
+                                  ]
                                     .filter(Boolean)
                                     .join(" · ")}
                                 </p>
                               )}
 
                               {place.safetyTips && (
-                                <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">
-                                  <span className="font-semibold">Safety information:</span>{" "}
+                                <p className="mt-2 text-sm text-black line-clamp-3">
+                                  <span className="font-bold">Safety information:</span>{" "}
                                   {place.safetyTips}
                                 </p>
                               )}
 
                               {place.insiderTip && (
-                                <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">
-                                  <span className="font-semibold">Local tip:</span> {place.insiderTip}
+                                <p className="mt-2 text-sm text-black line-clamp-3">
+                                  <span className="font-bold">Local tip:</span> {place.insiderTip}
                                 </p>
                               )}
 
                               {place.matchReason && (
-                                <p className="mt-1.5 text-[11px] text-[#a77a2f] font-medium flex items-center gap-1">
-                                  <span>💡</span>
+                                <p className="mt-2 flex items-start gap-1.5 text-sm font-medium text-black">
+                                  <span aria-hidden>💡</span>
                                   <span>{place.matchReason}</span>
                                 </p>
                               )}
 
-                              <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+                              <div className="mt-4 flex items-center justify-between gap-2 border-t border-[#c8c8c8] pt-3">
                                 <Link
                                   href={`/places/${encodeURIComponent(place.slug)}`}
-                                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#173b2c] hover:underline"
+                                  className="inline-flex items-center gap-1.5 text-base font-bold text-black underline underline-offset-4 hover:no-underline"
                                 >
                                   View on Places
-                                  <ExternalLink size={12} />
+                                  <ExternalLink size={15} />
                                 </Link>
 
                                 {tripContext && (
                                   <button
                                     type="button"
                                     onClick={() => tripContext.toggleTrip(place.id)}
-                                    className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition cursor-pointer ${
+                                    className={`flex cursor-pointer items-center gap-1.5 rounded-lg border border-black px-3.5 py-2 text-base font-bold transition ${
                                       inTrip
-                                        ? "bg-emerald-100 text-emerald-800"
-                                        : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                                        ? "bg-black text-white"
+                                        : "bg-white text-black hover:bg-[#e4e4e4]"
                                     }`}
                                   >
                                     {inTrip ? (
                                       <>
-                                        <Check size={12} className="text-emerald-600" />
+                                        <Check size={15} />
                                         In Trip
                                       </>
                                     ) : (
                                       <>
-                                        <Bookmark size={12} />
+                                        <Bookmark size={15} />
                                         Save
                                       </>
                                     )}
@@ -424,19 +423,15 @@ export default function RecommendationBot() {
                   )}
                 </div>
 
-                <span className="mt-1 text-[10px] text-slate-400 px-1">
-                  {msg.timestamp}
-                </span>
+                <span className="mt-1 px-1 text-sm text-black">{msg.timestamp}</span>
               </div>
             ))}
 
             {/* Loading Indicator */}
             {isLoading && (
-              <div className="flex items-center gap-2 text-slate-500 bg-white border border-slate-200 p-3 rounded-2xl w-fit shadow-xs">
-                <Compass size={16} className="animate-spin text-[#173b2c]" />
-                <span className="text-xs font-medium text-slate-600">
-                  Lanka AI is scouting hidden spots...
-                </span>
+              <div className="flex w-fit items-center gap-2.5 rounded-2xl border border-[#c8c8c8] bg-white p-3.5 text-black">
+                <Compass size={20} className="animate-spin text-black" />
+                <span className="text-base text-black">Lanka AI is scouting hidden spots...</span>
               </div>
             )}
 
@@ -445,17 +440,15 @@ export default function RecommendationBot() {
 
           {/* Quick suggestions if few messages */}
           {messages.length <= 2 && (
-            <div className="border-t border-slate-100 bg-white px-3 py-2">
-              <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                Suggested questions
-              </span>
-              <div className="flex flex-wrap gap-1.5">
+            <div className="border-t border-black bg-white px-3 py-3">
+              <span className="mb-2 block text-base font-bold text-black">Suggested questions</span>
+              <div className="flex flex-wrap gap-2">
                 {SUGGESTED_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
                     type="button"
                     onClick={() => handleSend(prompt)}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:border-[#173b2c] hover:bg-[#173b2c]/5 transition cursor-pointer text-left"
+                    className="cursor-pointer rounded-full border border-black bg-white px-3.5 py-2 text-left text-sm font-medium text-black transition hover:bg-black hover:text-white"
                   >
                     {prompt}
                   </button>
@@ -470,7 +463,7 @@ export default function RecommendationBot() {
               e.preventDefault();
               handleSend();
             }}
-            className="flex items-center gap-2 border-t border-slate-200 bg-white p-3"
+            className="flex items-center gap-2 border-t-2 border-black bg-white p-3"
           >
             <input
               type="text"
@@ -478,7 +471,8 @@ export default function RecommendationBot() {
               onChange={(e) => setInput(e.target.value)}
               maxLength={1000}
               placeholder="Ask: '3 days in Ella', 'Secret waterfalls'..."
-              className="flex-1 rounded-full border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-[#173b2c] focus:bg-white transition"
+              style={{ fontFamily: FONT_STACK }}
+              className="flex-1 rounded-full border border-black bg-white px-5 py-3 text-base text-black outline-none placeholder:text-[#555] focus:ring-2 focus:ring-black"
               disabled={isLoading}
             />
 
@@ -486,9 +480,9 @@ export default function RecommendationBot() {
               type="submit"
               disabled={!input.trim() || isLoading}
               aria-label="Send message"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#173b2c] text-white shadow-xs transition hover:bg-[#123b26] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95"
+              className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-black text-white transition hover:bg-[#333] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Send size={15} />
+              <Send size={18} />
             </button>
           </form>
         </div>
